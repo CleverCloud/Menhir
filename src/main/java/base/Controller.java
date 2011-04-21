@@ -8,6 +8,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.ws.rs.core.Response;
 import org.codehaus.groovy.control.CompilationFailedException;
+import util.MalformedTemplateException;
 import util.Template;
 
 /**
@@ -43,9 +44,11 @@ public abstract class Controller {
       SimpleTemplateEngine engine = new SimpleTemplateEngine();
       Writable templated = null;
       Template template = new Template(templateFile);
-      template.compute();
       try {
+         template.compute();
          templated = engine.createTemplate(template.toString()).make(args);
+      } catch (MalformedTemplateException ex) {
+         Logger.getLogger(Controller.class.getName()).log(Level.SEVERE, null, ex);
       } catch (CompilationFailedException ex) {
          Logger.getLogger(caller).log(Level.SEVERE, null, ex);
       } catch (ClassNotFoundException ex) {

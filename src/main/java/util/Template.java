@@ -37,7 +37,7 @@ public class Template {
       template = sb.toString();
    }
 
-   public void compute() {
+   public void compute() throws MalformedTemplateException {
       StringBuilder sb = new StringBuilder();
       char c;
       for (int i = 0; i < template.length(); ++i) {
@@ -66,8 +66,13 @@ public class Template {
                char n5 = template.charAt(++i);
                if (n5 == '{') {
                   do {
-                     while ((c = template.charAt(++i)) != '}');
-                  } while ((c = template.charAt(++i)) != '*');
+                     do {
+                        if (++i == template.length())
+                           throw new MalformedTemplateException();
+                     } while ((c = template.charAt(i)) != '}');
+                     if (++i == template.length())
+                        throw new MalformedTemplateException();
+                  } while ((c = template.charAt(i)) != '*');
                } else {
                   sb.append('*').append(n5);
                }
