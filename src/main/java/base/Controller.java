@@ -2,7 +2,6 @@ package base;
 
 import groovy.lang.Writable;
 import groovy.text.SimpleTemplateEngine;
-import java.io.File;
 import java.io.IOException;
 import java.util.Map;
 import java.util.logging.Level;
@@ -44,6 +43,7 @@ public abstract class Controller {
       SimpleTemplateEngine engine = new SimpleTemplateEngine();
       Writable templated = null;
       Template template = new Template(templateFile);
+      template.compute();
       try {
          templated = engine.createTemplate(template.toString()).make(args);
       } catch (CompilationFailedException ex) {
