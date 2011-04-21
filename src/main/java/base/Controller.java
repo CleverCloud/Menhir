@@ -4,11 +4,12 @@ import groovy.lang.Writable;
 import groovy.text.SimpleTemplateEngine;
 import java.io.File;
 import java.io.IOException;
+import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.ws.rs.core.Response;
 import org.codehaus.groovy.control.CompilationFailedException;
-import util.ClassToFields;
+import util.Template;
 
 /**
  *
@@ -16,7 +17,7 @@ import util.ClassToFields;
  */
 public abstract class Controller {
    
-   public Response render(Object o) {
+   public Response render(Map<String, Object> args) {
       StackTraceElement[] stes = new Throwable().getStackTrace();
       String potentialCaller = null;
       int index = 0;
@@ -32,18 +33,19 @@ public abstract class Controller {
       }
       StackTraceElement ste = stes[index-1];
       String caller = ste.getClassName();
-      String template;
+      String templateFile;
       try {
-         template = "/home/keruspe/Clever Cloud/Loose/src/main/java/app/views/" + Class.forName(caller).getSimpleName() + "/" + ste.getMethodName() + ".html";
+         templateFile = "/home/keruspe/Clever Cloud/Loose/src/main/java/app/views/" + Class.forName(caller).getSimpleName() + "/" + ste.getMethodName() + ".html";
       } catch (ClassNotFoundException ex) {
          Logger.getLogger(Controller.class.getName()).log(Level.SEVERE, null, ex);
-         template = "404.html";
+         templateFile = "/home/keruspe/Clever Cloud/Loose/src/main/java/app/views/404.html";
       }
       
       SimpleTemplateEngine engine = new SimpleTemplateEngine();
       Writable templated = null;
+      Template template = new Template(templateFile);
       try {
-         templated = engine.createTemplate(new File(template)).make(ClassToFields.getMap(o));
+         templated = engine.createTemplate(template.toString()).make(args);
       } catch (CompilationFailedException ex) {
          Logger.getLogger(caller).log(Level.SEVERE, null, ex);
       } catch (ClassNotFoundException ex) {
