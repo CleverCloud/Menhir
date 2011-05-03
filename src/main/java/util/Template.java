@@ -47,9 +47,8 @@ public class Template {
          switch ((c = template.charAt(i))) {
             case '#':
                if (++i == template.length())
-                  throw new MalformedTemplateException();
-               c = template.charAt(i);
-               if (c == '{') {
+                  sb.append('#');
+               else if ((c = template.charAt(i)) == '{') {
                   StringBuilder tag = new StringBuilder();
                   for (++i; i < template.length() && (c = template.charAt(i)) != ' ' && c != '}'; ++i)
                      tag.append(c);
@@ -96,9 +95,8 @@ public class Template {
                break;
             case '*':
                if (++i == template.length())
-                  throw new MalformedTemplateException();
-               c = template.charAt(i);
-               if (c == '{') {
+                  sb.append('*');
+               else if ((c = template.charAt(i)) == '{') {
                   for (++i; i < template.length() && (c = template.charAt(i)) != '*'; ++i) {
                      for (++i; i < template.length() && (c = template.charAt(i)) != '}'; ++i) ;
                      if (i == template.length())
