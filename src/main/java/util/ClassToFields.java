@@ -7,11 +7,10 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
- *
  * @author keruspe
  */
 public class ClassToFields {
-   
+
    public static Map<String, Object> getMap(Object o) {
       HashMap<String, Object> map = new HashMap<String, Object>();
       for (Field f : o.getClass().getDeclaredFields()) {
@@ -28,5 +27,5 @@ public class ClassToFields {
       }
       return map;
    }
-   
+
 }

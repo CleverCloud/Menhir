@@ -3,9 +3,13 @@ package base;
 import groovy.lang.Writable;
 import groovy.text.SimpleTemplateEngine;
 import java.io.IOException;
+import java.net.MalformedURLException;
 import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import javax.ejb.LocalBean;
+import javax.ejb.Stateless;
+import javax.servlet.http.HttpServlet;
 import javax.ws.rs.core.Response;
 import org.codehaus.groovy.control.CompilationFailedException;
 import util.MalformedTemplateException;
@@ -15,7 +19,9 @@ import util.Template;
  *
  * @author keruspe
  */
-public abstract class Controller {
+@Stateless
+@LocalBean
+public class   Controller {
    
    public Response render(Map<String, Object> args) {
       StackTraceElement[] stes = new Throwable().getStackTrace();
@@ -47,6 +53,7 @@ public abstract class Controller {
       try {
          template.compute();
          templated = engine.createTemplate(template.toString()).make(args);
+         //templated = engine.createTemplate(Controller.class.getClassLoader().getResource("../views/").getPath()).make(args);
       } catch (MalformedTemplateException ex) {
          Logger.getLogger(Controller.class.getName()).log(Level.SEVERE, null, ex);
       } catch (CompilationFailedException ex) {

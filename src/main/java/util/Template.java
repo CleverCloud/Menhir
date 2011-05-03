@@ -1,14 +1,12 @@
 package util;
 
 import java.io.BufferedReader;
-import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
- *
  * @author keruspe
  */
 public class Template {
@@ -43,11 +41,15 @@ public class Template {
       for (int i = 0; i < template.length(); ++i) {
          switch ((c = template.charAt(i))) {
             case '#':
-               char n1 = template.charAt(++i);
-               if (n1 == '{') {
+               if (++i == template.length())
+                  throw new MalformedTemplateException();
+               c = template.charAt(i);
+               if (c == '{') {
+                  StringBuilder tag = new StringBuilder();
+
                   // TODO: handle # tags
                } else {
-                  sb.append('#').append(n1);
+                  sb.append('#').append(c);
                }
                break;
             case '$':
@@ -63,8 +65,8 @@ public class Template {
                sb.append('%');
                break;
             case '*':
-               char n5 = template.charAt(++i);
-               if (n5 == '{') {
+               c = template.charAt(++i);
+               if (c == '{') {
                   do {
                      do {
                         if (++i == template.length())
@@ -74,16 +76,18 @@ public class Template {
                         throw new MalformedTemplateException();
                   } while ((c = template.charAt(i)) != '*');
                } else {
-                  sb.append('*').append(n5);
+                  sb.append('*').append(c);
                }
                break;
             case '"':
             case '\'':
                sb.append(c);
-               char n6;
-               while ((n6 = template.charAt(++i)) != c) {
-                  sb.append(n6);
+               char delimit = c;
+               while (++i != template.length() && (c = template.charAt(i)) != delimit) {
+                  sb.append(c);
                }
+               if (i == template.length())
+                  throw new MalformedTemplateException();
                sb.append(c);
                break;
             default:

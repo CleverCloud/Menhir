@@ -3,8 +3,6 @@ package app.controllers;
 import app.models.FooBar;
 import base.Controller;
 import com.google.gson.Gson;
-import javax.ejb.Stateless;
-import javax.ejb.LocalBean;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
@@ -17,8 +15,6 @@ import util.ClassToFields;
  *
  * @author keruspe
  */
-@Stateless
-@LocalBean
 @Path("/")
 public class FooBarController extends Controller {
 
