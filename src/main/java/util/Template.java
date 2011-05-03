@@ -46,10 +46,13 @@ public class Template {
                c = template.charAt(i);
                if (c == '{') {
                   StringBuilder tag = new StringBuilder();
-                  for (; ++i < template.length() && (c = template.charAt(i)) != ' '; ++i)
+                  for (++i ; i < template.length() && (c = template.charAt(i)) != ' '; ++i)
                      tag.append(c);
                   if (i == template.length())
                      throw new MalformedTemplateException();
+                  if ("if".equals(tag)) {
+
+                  }
                   // TODO: handle # tags
                } else {
                   sb.append('#').append(c);
@@ -68,10 +71,12 @@ public class Template {
                sb.append('%');
                break;
             case '*':
-               c = template.charAt(++i);
+               if (++i == template.length())
+                  throw new MalformedTemplateException();
+               c = template.charAt(i);
                if (c == '{') {
-                  for (; ++i < template.length() && (c = template.charAt(i)) != '*'; ++i) {
-                     for (; ++i < template.length() && (c = template.charAt(i)) != '}'; ++i) ;
+                  for (++i ; i < template.length() && (c = template.charAt(i)) != '*'; ++i) {
+                     for (++i ; i < template.length() && (c = template.charAt(i)) != '}'; ++i) ;
                      if (i == template.length())
                         throw new MalformedTemplateException();
                   }
@@ -84,7 +89,7 @@ public class Template {
             case '"':
             case '\'':
                char delimit = c;
-               for (; ++i < template.length() && (c = template.charAt(i)) != delimit; ++i)
+               for (++i ; i < template.length() && (c = template.charAt(i)) != delimit; ++i)
                   sb.append(c);
                if (i == template.length())
                   throw new MalformedTemplateException();
