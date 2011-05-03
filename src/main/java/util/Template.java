@@ -46,14 +46,31 @@ public class Template {
                c = template.charAt(i);
                if (c == '{') {
                   StringBuilder tag = new StringBuilder();
-                  for (++i ; i < template.length() && (c = template.charAt(i)) != ' '; ++i)
+                  for (++i; i < template.length() && (c = template.charAt(i)) != ' '; ++i)
                      tag.append(c);
                   if (i == template.length())
                      throw new MalformedTemplateException();
                   if ("if".equals(tag)) {
-
+                     // TODO: handle #if tags
+                     sb.append("__IF__");
+                  } else if ("/if".equals(tag)) {
+                     // TODO: handle #/if tags
+                     sb.append("__/IF__");
+                  } else if ("else".equals(tag)) {
+                     // TODO: handle #else tags
+                     sb.append("__ELSE__");
+                  } else if ("/else".equals(tag)) {
+                     // TODO: handle #/else tags
+                     sb.append("__/ELSE__");
+                  } else {
+                     // TODO: handle other # tags
+                     sb.append("__OTHER__");
                   }
-                  // TODO: handle # tags
+                  /* TMP */
+                  for (++i; i < template.length() && (c = template.charAt(i)) != '}'; ++i) ;
+                  if (i == template.length())
+                     throw new MalformedTemplateException();
+                  /* /TMP */
                } else {
                   sb.append('#').append(c);
                }
@@ -75,8 +92,8 @@ public class Template {
                   throw new MalformedTemplateException();
                c = template.charAt(i);
                if (c == '{') {
-                  for (++i ; i < template.length() && (c = template.charAt(i)) != '*'; ++i) {
-                     for (++i ; i < template.length() && (c = template.charAt(i)) != '}'; ++i) ;
+                  for (++i; i < template.length() && (c = template.charAt(i)) != '*'; ++i) {
+                     for (++i; i < template.length() && (c = template.charAt(i)) != '}'; ++i) ;
                      if (i == template.length())
                         throw new MalformedTemplateException();
                   }
@@ -89,7 +106,7 @@ public class Template {
             case '"':
             case '\'':
                char delimit = c;
-               for (++i ; i < template.length() && (c = template.charAt(i)) != delimit; ++i)
+               for (++i; i < template.length() && (c = template.charAt(i)) != delimit; ++i)
                   sb.append(c);
                if (i == template.length())
                   throw new MalformedTemplateException();
