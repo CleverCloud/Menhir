@@ -55,28 +55,28 @@ public class Template {
                   if (i == template.length())
                      throw new MalformedTemplateException();
                   if ("if".equals(tag.toString())) {
-                     // TODO: handle #if tags
-                     sb.append("__IF__");
-                  } else if ("/if".equals(tag.toString())) {
-                     // TODO: handle #/if tags
-                     sb.append("__/IF__");
+                     sb.append("<% if (");
+                     for (++i; i < template.length() && (c = template.charAt(i)) != '}'; ++i)
+                        sb.append(c);
+                     sb.append(") { %>");
+                  } else if ("elseif".equals(tag.toString())) {
+                     sb.append("<% } else if (");
+                     for (++i; i < template.length() && (c = template.charAt(i)) != '}'; ++i)
+                        sb.append(c);
+                     sb.append(") { %>");
                   } else if ("else".equals(tag.toString())) {
-                     // TODO: handle #else tags
-                     sb.append("__ELSE__");
-                  } else if ("/else".equals(tag.toString())) {
-                     // TODO: handle #/else tags
-                     sb.append("__/ELSE__");
+                     sb.append("<% } else { %>");
+                  } else if ("/if".equals(tag.toString())) {
+                     sb.append("<% } %>");
                   } else {
                      // TODO: handle other # tags
                      sb.append("__OTHER(").append(tag).append(")__");
                   }
-                  /* TMP */
                   if (c != '}') {
                      for (++i; i < template.length() && (c = template.charAt(i)) != '}'; ++i) ;
                      if (i == template.length())
                         throw new MalformedTemplateException();
                   }
-                  /* /TMP */
                } else {
                   sb.append('#').append(c);
                }
