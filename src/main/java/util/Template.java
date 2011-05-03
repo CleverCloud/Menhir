@@ -94,12 +94,16 @@ public class Template {
                   sb.append('%');
                else if ((c = template.charAt(i)) == '{') {
                   sb.append("<% ");
-                  for (++i; i < template.length() && (c = template.charAt(i)) != '%'; ++i) {
+                  Character toAppend = null;
+                  do {
+                     if (toAppend != null)
+                        sb.append(toAppend);
                      for (++i; i < template.length() && (c = template.charAt(i)) != '}'; ++i)
                         sb.append(c);
                      if (i == template.length())
                         throw new MalformedTemplateException();
-                  }
+                     toAppend = '}';
+                  } while(++i < template.length() && (c = template.charAt(i)) != '%');
                   if (i == template.length())
                      throw new MalformedTemplateException();
                   sb.append(" %>");
@@ -111,11 +115,15 @@ public class Template {
                if (++i == template.length())
                   sb.append('*');
                else if ((c = template.charAt(i)) == '{') {
-                  for (++i; i < template.length() && (c = template.charAt(i)) != '*'; ++i) {
+                  Character toAppend = null;
+                  do {
+                     if (toAppend != null)
+                        sb.append(toAppend);
                      for (++i; i < template.length() && (c = template.charAt(i)) != '}'; ++i) ;
                      if (i == template.length())
                         throw new MalformedTemplateException();
-                  }
+                     toAppend = '}';
+                  } while (++i < template.length() && (c = template.charAt(i)) != '*');
                   if (i == template.length())
                      throw new MalformedTemplateException();
                } else {
