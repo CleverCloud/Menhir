@@ -46,7 +46,7 @@ public class   Controller {
          Logger.getLogger(Controller.class.getName()).log(Level.SEVERE, null, ex);
          templateFile = "/home/keruspe/Clever Cloud/Loose/src/main/java/app/views/404.html";
       }
-      
+
       SimpleTemplateEngine engine = new SimpleTemplateEngine();
       Writable templated = null;
       Template template = new Template(templateFile);

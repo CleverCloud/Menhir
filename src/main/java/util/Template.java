@@ -12,6 +12,7 @@ import java.util.logging.Logger;
 public class Template {
 
    private String template;
+   private Boolean computed;
 
    public Template(String fileName) {
       FileReader fr = null;
@@ -21,7 +22,7 @@ public class Template {
          BufferedReader br = new BufferedReader(fr);
          String line;
          while ((line = br.readLine()) != null) {
-            sb.append(line);
+            sb.append(line).append('\n');
          }
       } catch (IOException ex) {
          Logger.getLogger(Template.class.getName()).log(Level.SEVERE, null, ex);
@@ -33,9 +34,13 @@ public class Template {
          }
       }
       template = sb.toString();
+      computed = Boolean.FALSE;
    }
 
    public void compute() throws MalformedTemplateException {
+      if (computed)
+         return;
+      computed = Boolean.TRUE;
       StringBuilder sb = new StringBuilder();
       char c;
       for (int i = 0; i < template.length(); ++i) {
@@ -46,30 +51,32 @@ public class Template {
                c = template.charAt(i);
                if (c == '{') {
                   StringBuilder tag = new StringBuilder();
-                  for (++i; i < template.length() && (c = template.charAt(i)) != ' '; ++i)
+                  for (++i; i < template.length() && (c = template.charAt(i)) != ' ' && c != '}'; ++i)
                      tag.append(c);
                   if (i == template.length())
                      throw new MalformedTemplateException();
-                  if ("if".equals(tag)) {
+                  if ("if".equals(tag.toString())) {
                      // TODO: handle #if tags
                      sb.append("__IF__");
-                  } else if ("/if".equals(tag)) {
+                  } else if ("/if".equals(tag.toString())) {
                      // TODO: handle #/if tags
                      sb.append("__/IF__");
-                  } else if ("else".equals(tag)) {
+                  } else if ("else".equals(tag.toString())) {
                      // TODO: handle #else tags
                      sb.append("__ELSE__");
-                  } else if ("/else".equals(tag)) {
+                  } else if ("/else".equals(tag.toString())) {
                      // TODO: handle #/else tags
                      sb.append("__/ELSE__");
                   } else {
                      // TODO: handle other # tags
-                     sb.append("__OTHER__");
+                     sb.append("__OTHER(").append(tag).append(")__");
                   }
                   /* TMP */
-                  for (++i; i < template.length() && (c = template.charAt(i)) != '}'; ++i) ;
-                  if (i == template.length())
-                     throw new MalformedTemplateException();
+                  if (c != '}') {
+                     for (++i; i < template.length() && (c = template.charAt(i)) != '}'; ++i) ;
+                     if (i == template.length())
+                        throw new MalformedTemplateException();
+                  }
                   /* /TMP */
                } else {
                   sb.append('#').append(c);
