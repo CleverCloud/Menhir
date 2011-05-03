@@ -90,8 +90,22 @@ public class Template {
                sb.append('&');
                break;
             case '%':
-               // TODO: handle java code
-               sb.append('%');
+               if (++i == template.length())
+                  sb.append('%');
+               else if ((c = template.charAt(i)) == '{') {
+                  sb.append("<% ");
+                  for (++i; i < template.length() && (c = template.charAt(i)) != '%'; ++i) {
+                     for (++i; i < template.length() && (c = template.charAt(i)) != '}'; ++i)
+                        sb.append(c);
+                     if (i == template.length())
+                        throw new MalformedTemplateException();
+                  }
+                  if (i == template.length())
+                     throw new MalformedTemplateException();
+                  sb.append(" %>");
+               } else {
+                  sb.append('%').append(c);
+               }
                break;
             case '*':
                if (++i == template.length())
