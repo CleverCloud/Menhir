@@ -46,7 +46,10 @@ public class Template {
                c = template.charAt(i);
                if (c == '{') {
                   StringBuilder tag = new StringBuilder();
-
+                  for (; ++i < template.length() && (c = template.charAt(i)) != ' '; ++i)
+                     tag.append(c);
+                  if (i == template.length())
+                     throw new MalformedTemplateException();
                   // TODO: handle # tags
                } else {
                   sb.append('#').append(c);
@@ -67,28 +70,24 @@ public class Template {
             case '*':
                c = template.charAt(++i);
                if (c == '{') {
-                  do {
-                     do {
-                        if (++i == template.length())
-                           throw new MalformedTemplateException();
-                     } while ((c = template.charAt(i)) != '}');
-                     if (++i == template.length())
+                  for (; ++i < template.length() && (c = template.charAt(i)) != '*'; ++i) {
+                     for (; ++i < template.length() && (c = template.charAt(i)) != '}'; ++i) ;
+                     if (i == template.length())
                         throw new MalformedTemplateException();
-                  } while ((c = template.charAt(i)) != '*');
+                  }
+                  if (i == template.length())
+                     throw new MalformedTemplateException();
                } else {
                   sb.append('*').append(c);
                }
                break;
             case '"':
             case '\'':
-               sb.append(c);
                char delimit = c;
-               while (++i != template.length() && (c = template.charAt(i)) != delimit) {
+               for (; ++i < template.length() && (c = template.charAt(i)) != delimit; ++i)
                   sb.append(c);
-               }
                if (i == template.length())
                   throw new MalformedTemplateException();
-               sb.append(c);
                break;
             default:
                sb.append(c);
