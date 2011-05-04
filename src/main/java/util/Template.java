@@ -3,6 +3,7 @@ package util;
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
+import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -37,7 +38,7 @@ public class Template {
       computed = Boolean.FALSE;
    }
 
-   public void compute() throws MalformedTemplateException {
+   public void compute(Map<String, Object> args) throws MalformedTemplateException {
       if (computed)
          return;
       computed = Boolean.TRUE;
@@ -82,8 +83,23 @@ public class Template {
                }
                break;
             case '$':
-               // TODO: handle vars checking
-               sb.append('$');
+               if (++i == template.length())
+                  sb.append('$');
+               else {
+                  StringBuilder varName = new StringBuilder();
+                  char delimit;
+                  if ((c = template.charAt(i)) == '{')
+                     delimit = '}';
+                  else {
+                     delimit = ' ';
+                     varName.append(c);
+                  }
+                  for (++i; i < template.length() && ((c = template.charAt(i)) != delimit); ++i)
+                     varName.append(c);
+                  if (!args.containsKey(varName.toString()))
+                     args.put(varName.toString(), "");
+                  sb.append("${").append(varName.toString()).append('}');
+               }
                break;
             case '&':
                // TODO: handle i18n
@@ -103,7 +119,7 @@ public class Template {
                      if (i == template.length())
                         throw new MalformedTemplateException();
                      toAppend = '}';
-                  } while(++i < template.length() && (c = template.charAt(i)) != '%');
+                  } while (++i < template.length() && (c = template.charAt(i)) != '%');
                   if (i == template.length())
                      throw new MalformedTemplateException();
                   sb.append(" %>");
@@ -129,14 +145,6 @@ public class Template {
                } else {
                   sb.append('*').append(c);
                }
-               break;
-            case '"':
-            case '\'':
-               char delimit = c;
-               for (++i; i < template.length() && (c = template.charAt(i)) != delimit; ++i)
-                  sb.append(c);
-               if (i == template.length())
-                  throw new MalformedTemplateException();
                break;
             default:
                sb.append(c);
