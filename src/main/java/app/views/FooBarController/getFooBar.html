@@ -1,5 +1,5 @@
-This is FooBar with foo ${foo} and bar ${bar}
-#{if foo.equals("Yay")}
+This is FooBar with foo ${foobar.foo} and bar ${foobar.bar}
+#{if foobar.foo.equals("Yay")}
 blabla
 #{elseif false}
 kikoo
@@ -17,3 +17,4 @@ woohoo
 #{else}
 yeepee ${graou} plouf
 #{/if}
+\#{escaped}

@@ -63,7 +63,7 @@ public class   Controller {
       } catch (IOException ex) {
          Logger.getLogger(caller).log(Level.SEVERE, null, ex);
       }
-      
+
       String response = (templated == null) ?  "" : templated.toString();
       return Response.ok(response).build();
    }

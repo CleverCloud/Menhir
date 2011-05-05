@@ -11,6 +11,9 @@ import javax.ws.rs.core.Response;
 import org.bson.types.ObjectId;
 import util.ClassToFields;
 
+import java.util.HashMap;
+import java.util.Map;
+
 /**
  *
  * @author keruspe
@@ -24,7 +27,9 @@ public class FooBarController extends Controller {
       FooBar fooBar = FooBar.getById(new ObjectId(id));
       if (fooBar == null)
          return Response.status(404).entity("Foobar " + id + " not found.").build();
-      return render(ClassToFields.getMap(fooBar));
+      Map<String, Object> args = new HashMap<String, Object>();
+      args.put("foobar", fooBar);
+      return render(args);
    }
    
    @POST

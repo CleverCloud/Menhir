@@ -71,6 +71,7 @@ public class Template {
                      sb.append("<% } %>");
                   } else {
                      // TODO: handle other # tags
+                     // set, get, doLayout, extends, script, list, verbatim
                      sb.append("__OTHER(").append(tag).append(")__");
                   }
                   if (c != '}') {
@@ -96,8 +97,9 @@ public class Template {
                   }
                   for (++i; i < template.length() && ((c = template.charAt(i)) != delimit); ++i)
                      varName.append(c);
-                  if (!args.containsKey(varName.toString()))
-                     args.put(varName.toString(), "");
+                  String objName = varName.toString().split("\\?")[0].split("\\.")[0];
+                  if (!args.containsKey(objName))
+                     args.put(objName, null);
                   sb.append("${").append(varName.toString()).append('}');
                }
                break;
