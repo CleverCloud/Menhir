@@ -146,6 +146,15 @@ public class Template {
                   sb.append('*').append(c);
                }
                break;
+            case '@':
+               // TODO: handle links
+               sb.append('@');
+               break;
+            case '\\':
+               if(++i == template.length())
+                  throw new MalformedTemplateException();
+               sb.append(template.charAt(i));
+               break;
             default:
                sb.append(c);
          }
