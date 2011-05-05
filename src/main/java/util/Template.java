@@ -60,6 +60,11 @@ public class Template {
                      for (++i; i < template.length() && (c = template.charAt(i)) != '}'; ++i)
                         sb.append(c);
                      sb.append(") { %>");
+                  } else if ("ifnot".equals(tag.toString())) {
+                     sb.append("<% } if (!(");
+                     for (++i; i < template.length() && (c = template.charAt(i)) != '}'; ++i)
+                        sb.append(c);
+                     sb.append(")) { %>");
                   } else if ("elseif".equals(tag.toString())) {
                      sb.append("<% } else if (");
                      for (++i; i < template.length() && (c = template.charAt(i)) != '}'; ++i)
