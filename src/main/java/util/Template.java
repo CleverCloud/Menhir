@@ -73,8 +73,8 @@ public class Template {
                      // set, get, doLayout, extends, script, list, verbatim, form
                      Map<String, Object> tagArgs = new HashMap<String, Object>();
                      if (c != '}') {
-                        for (; i < template.length() && (c = template.charAt(i)) == ' ' && c != '}'; ++i) ;
                         while (c != '}') {
+                           for (; i < template.length() && template.charAt(i) == ' '; ++i) ;
                            StringBuilder argName = new StringBuilder();
                            StringBuilder argValue = new StringBuilder();
                            for (; i < template.length() && (c = template.charAt(i)) != ':' && c != '}' && c != ' '; ++i)
@@ -94,7 +94,7 @@ public class Template {
                            }
                            if (++i == template.length())
                               throw new MalformedTemplateException();
-                           for (; i < template.length() && (c = template.charAt(i)) == ' ' && c != '}'; ++i) ;
+                           for (; i < template.length() && template.charAt(i) == ' '; ++i) ;
                            if (c == '}') {
                               tagArgs.put(argName.toString(), null);
                               break;
@@ -108,8 +108,13 @@ public class Template {
                               throw new MalformedTemplateException();
                            if (++i == template.length())
                               throw new MalformedTemplateException();
-                           for (; i < template.length() && (c = template.charAt(i)) == ' ' && c != '}'; ++i) ;
+                           for (; i < template.length() && (c = template.charAt(i)) == ' ' && c != ',' && c != '}'; ++i)
+                              ;
                            tagArgs.put(argName.toString(), argValue.toString());
+                           if (c == ',') {
+                              if (++i == template.length())
+                                 throw new MalformedTemplateException();
+                           }
                         }
                      }
                      try {
