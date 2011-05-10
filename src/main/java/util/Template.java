@@ -73,34 +73,44 @@ public class Template {
                      // set, get, doLayout, extends, script, list, verbatim, form
                      Map<String, Object> tagArgs = new HashMap<String, Object>();
                      if (c != '}') {
-                        // TODO: better args parsing
-                        StringBuilder argName;
-                        StringBuilder argValue;
-                        for (; i < template.length() && (c = template.charAt(i)) == ' ' && c != '}'; ++i);
-                        do {
-                           argName = new StringBuilder();
-                           argValue = new StringBuilder();
-                           for (; i < template.length() && (c = template.charAt(i)) != ':' && c != '}'; ++i)
+                        for (; i < template.length() && (c = template.charAt(i)) == ' ' && c != '}'; ++i) ;
+                        while (c != '}') {
+                           StringBuilder argName = new StringBuilder();
+                           StringBuilder argValue = new StringBuilder();
+                           for (; i < template.length() && (c = template.charAt(i)) != ':' && c != '}' && c != ' '; ++i)
                               argName.append(c);
-                           if (c == '}')
+                           if (c != ':') {
+                              if (argName.length() > 2) {
+                                 if (argName.charAt(0) == argName.charAt(argName.length() - 1))
+                                    tagArgs.put("_arg", argName.toString().substring(1, argName.length() - 1));
+                                 else
+                                    throw new MalformedTemplateException();
+                              }
+                              for (; i < template.length() && (c = template.charAt(i)) != '}'; ++i) {
+                                 if (c != ' ' && c != '/') // TODO: be stricter about simple tags terminaison
+                                    throw new MalformedTemplateException();
+                              }
                               break;
-                              //throw new MalformedTemplateException();
-                           ++i;
+                           }
+                           if (++i == template.length())
+                              throw new MalformedTemplateException();
                            for (; i < template.length() && (c = template.charAt(i)) == ' ' && c != '}'; ++i) ;
-                           if (c == '}')
+                           if (c == '}') {
+                              tagArgs.put(argName.toString(), null);
                               break;
-                              //throw new MalformedTemplateException();
-                           char delim = template.charAt(i++);
+                           }
+                           char delim = template.charAt(i);
+                           if (++i == template.length())
+                              throw new MalformedTemplateException(); // TODO: "Anything special for non-strings ? Control delimiter ?"
                            for (; i < template.length() && (c = template.charAt(i)) != delim && c != '}'; ++i)
                               argValue.append(c);
                            if (c == '}')
-                              break;
-                              //throw new MalformedTemplateException();
-                           ++i;
+                              throw new MalformedTemplateException();
+                           if (++i == template.length())
+                              throw new MalformedTemplateException();
                            for (; i < template.length() && (c = template.charAt(i)) == ' ' && c != '}'; ++i) ;
                            tagArgs.put(argName.toString(), argValue.toString());
-                           Logger.getAnonymousLogger().log(Level.SEVERE, "<" + argName.toString() + ">" + " -> " + "<" + argValue.toString() + ">" + " : " + tagArgs.get("name"));
-                        } while (c != '}');
+                        }
                      }
                      try {
                         Template tagImpl = new Template("/home/keruspe/Clever Cloud/Loose/src/main/java/app/views/tags/" + ts + ".tag");
@@ -112,7 +122,7 @@ public class Template {
                         sb.append("__OTHER(").append(tag.toString()).append(")__");
                      } catch (IOException ex) {
                         Logger.getLogger(Template.class.getName()).log(Level.SEVERE, null, ex);
-                        sb.append("__OTHER(").append(tag.toString()).append(")__");
+                        sb.append("__OTHER(").append(tag.toString()).append(")__");//.append(System.getProperty("user.dir")).append("__");
                      }
                   }
                   if (c != '}') {
