@@ -69,10 +69,11 @@ public class Template {
                   } else if ("/if".equals(ts)) {
                      sb.append("<% } %>");
                   } else {
-                     // TODO: handle other # tags
+                     // TODO: handle other # tags, and complex ones (eg #{foo}#{/foo})
                      // set, get, doLayout, extends, script, list, verbatim, form
                      Map<String, Object> tagArgs = new HashMap<String, Object>();
                      if (c != '}') {
+                        // TODO: better args parsing
                         StringBuilder argName;
                         StringBuilder argValue;
                         for (; i < template.length() && (c = template.charAt(i)) == ' ' && c != '}'; ++i);
