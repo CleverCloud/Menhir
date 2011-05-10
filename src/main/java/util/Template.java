@@ -1,8 +1,11 @@
 package util;
 
+import groovy.text.SimpleTemplateEngine;
+
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -12,28 +15,18 @@ import java.util.logging.Logger;
  */
 public class Template {
 
-   private String template;
-   private Boolean computed;
+   protected String template;
+   protected Boolean computed;
 
-   public Template(String fileName) {
-      FileReader fr = null;
+   public Template(String fileName) throws IOException {
       StringBuilder sb = new StringBuilder();
-      try {
-         fr = new FileReader(fileName);
-         BufferedReader br = new BufferedReader(fr);
-         String line;
-         while ((line = br.readLine()) != null) {
-            sb.append(line).append('\n');
-         }
-      } catch (IOException ex) {
-         Logger.getLogger(Template.class.getName()).log(Level.SEVERE, null, ex);
-      } finally {
-         try {
-            fr.close();
-         } catch (IOException ex) {
-            Logger.getLogger(Template.class.getName()).log(Level.SEVERE, null, ex);
-         }
+      FileReader fr = new FileReader(fileName);
+      BufferedReader br = new BufferedReader(fr);
+      String line;
+      while ((line = br.readLine()) != null) {
+         sb.append(line).append('\n');
       }
+      fr.close();
       template = sb.toString();
       computed = Boolean.FALSE;
    }
@@ -55,29 +48,71 @@ public class Template {
                      tag.append(c);
                   if (i == template.length())
                      throw new MalformedTemplateException();
-                  if ("if".equals(tag.toString())) {
+                  String ts = tag.toString();
+                  if ("if".equals(ts)) {
                      sb.append("<% if (");
                      for (++i; i < template.length() && (c = template.charAt(i)) != '}'; ++i)
                         sb.append(c);
                      sb.append(") { %>");
-                  } else if ("ifnot".equals(tag.toString())) {
+                  } else if ("ifnot".equals(ts)) {
                      sb.append("<% } if (!(");
                      for (++i; i < template.length() && (c = template.charAt(i)) != '}'; ++i)
                         sb.append(c);
                      sb.append(")) { %>");
-                  } else if ("elseif".equals(tag.toString())) {
+                  } else if ("elseif".equals(ts)) {
                      sb.append("<% } else if (");
                      for (++i; i < template.length() && (c = template.charAt(i)) != '}'; ++i)
                         sb.append(c);
                      sb.append(") { %>");
-                  } else if ("else".equals(tag.toString())) {
+                  } else if ("else".equals(ts)) {
                      sb.append("<% } else { %>");
-                  } else if ("/if".equals(tag.toString())) {
+                  } else if ("/if".equals(ts)) {
                      sb.append("<% } %>");
                   } else {
                      // TODO: handle other # tags
-                     // set, get, doLayout, extends, script, list, verbatim
-                     sb.append("__OTHER(").append(tag).append(")__");
+                     // set, get, doLayout, extends, script, list, verbatim, form
+                     Map<String, Object> tagArgs = new HashMap<String, Object>();
+                     if (c != '}') {
+                        StringBuilder argName;
+                        StringBuilder argValue;
+                        for (; i < template.length() && (c = template.charAt(i)) == ' ' && c != '}'; ++i);
+                        do {
+                           argName = new StringBuilder();
+                           argValue = new StringBuilder();
+                           for (; i < template.length() && (c = template.charAt(i)) != ':' && c != '}'; ++i)
+                              argName.append(c);
+                           if (c == '}')
+                              break;
+                              //throw new MalformedTemplateException();
+                           ++i;
+                           for (; i < template.length() && (c = template.charAt(i)) == ' ' && c != '}'; ++i) ;
+                           if (c == '}')
+                              break;
+                              //throw new MalformedTemplateException();
+                           char delim = template.charAt(i++);
+                           for (; i < template.length() && (c = template.charAt(i)) != delim && c != '}'; ++i)
+                              argValue.append(c);
+                           if (c == '}')
+                              break;
+                              //throw new MalformedTemplateException();
+                           ++i;
+                           for (; i < template.length() && (c = template.charAt(i)) == ' ' && c != '}'; ++i) ;
+                           tagArgs.put(argName.toString(), argValue.toString());
+                           Logger.getAnonymousLogger().log(Level.SEVERE, "<" + argName.toString() + ">" + " -> " + "<" + argValue.toString() + ">" + " : " + tagArgs.get("name"));
+                        } while (c != '}');
+                     }
+                     try {
+                        Template tagImpl = new Template("/home/keruspe/Clever Cloud/Loose/src/main/java/app/views/tags/" + ts + ".tag");
+                        SimpleTemplateEngine engine = new SimpleTemplateEngine();
+                        tagImpl.compute(tagArgs);
+                        sb.append(engine.createTemplate(tagImpl.toString()).make(tagArgs));
+                     } catch (ClassNotFoundException ex) {
+                        Logger.getLogger(Template.class.getName()).log(Level.SEVERE, null, ex);
+                        sb.append("__OTHER(").append(tag.toString()).append(")__");
+                     } catch (IOException ex) {
+                        Logger.getLogger(Template.class.getName()).log(Level.SEVERE, null, ex);
+                        sb.append("__OTHER(").append(tag.toString()).append(")__");
+                     }
                   }
                   if (c != '}') {
                      for (++i; i < template.length() && (c = template.charAt(i)) != '}'; ++i) ;
@@ -158,7 +193,7 @@ public class Template {
                sb.append('@');
                break;
             case '\\':
-               if(++i == template.length())
+               if (++i == template.length())
                   throw new MalformedTemplateException();
                sb.append(template.charAt(i));
                break;
