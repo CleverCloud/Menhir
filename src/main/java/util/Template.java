@@ -38,13 +38,14 @@ public class Template {
       StringBuilder sb = new StringBuilder();
       char c;
       for (int i = 0; i < template.length(); ++i) {
+         boolean needsSlash = false;
          switch ((c = template.charAt(i))) {
             case '#':
                if (++i == template.length())
                   sb.append('#');
                else if ((c = template.charAt(i)) == '{') {
                   StringBuilder tag = new StringBuilder();
-                  for (++i; i < template.length() && (c = template.charAt(i)) != ' ' && c != '}'; ++i)
+                  for (++i; i < template.length() && (c = template.charAt(i)) != ' ' && c != '}'; ++i) //TODO: check #{foo/} as is
                      tag.append(c);
                   if (i == template.length())
                      throw new MalformedTemplateException();
@@ -71,13 +72,14 @@ public class Template {
                   } else {
                      // TODO: handle other # tags, and complex ones (eg #{foo}#{/foo})
                      // set, get, doLayout, extends, script, list, verbatim, form
+                     needsSlash = true;
                      Map<String, Object> tagArgs = new HashMap<String, Object>();
-                     if (c != '}') {
-                        while (c != '}') {
+                     if (c != '/') {
+                        while (c != '/') {
                            for (; i < template.length() && template.charAt(i) == ' '; ++i) ;
                            StringBuilder argName = new StringBuilder();
                            StringBuilder argValue = new StringBuilder();
-                           for (; i < template.length() && (c = template.charAt(i)) != ':' && c != '}' && c != ' '; ++i)
+                           for (; i < template.length() && (c = template.charAt(i)) != ':' && c != '/' && c != ' '; ++i)
                               argName.append(c);
                            if (c != ':') {
                               if (argName.length() > 2) {
@@ -101,8 +103,8 @@ public class Template {
                                        throw new MalformedTemplateException();
                                  }
                               }
-                              for (; i < template.length() && (c = template.charAt(i)) != '}'; ++i) {
-                                 if (c != ' ' && c != '/') // TODO: be stricter about simple tags terminaison
+                              for (; i < template.length() && (c = template.charAt(i)) != '/'; ++i) {
+                                 if (c != ' ')
                                     throw new MalformedTemplateException();
                               }
                               break;
@@ -121,14 +123,14 @@ public class Template {
                                  throw new MalformedTemplateException();
                            } else
                               delim = ' ';
-                           for (; i < template.length() && (c = template.charAt(i)) != delim && c != '}'; ++i)
+                           for (; i < template.length() && (c = template.charAt(i)) != delim && c != '/'; ++i)
                               argValue.append(c);
                            if (c == '}') {
                               if (delim != ' ')
                                  throw new MalformedTemplateException();
                            } else if (++i == template.length())
                               throw new MalformedTemplateException();
-                           for (; i < template.length() && (c = template.charAt(i)) == ' ' && c != ',' && c != '}'; ++i)
+                           for (; i < template.length() && (c = template.charAt(i)) == ' ' && c != ',' && c != '/'; ++i)
                               ;
                            if (isString)
                               tagArgs.put(argName.toString(), argValue.toString());
@@ -164,10 +166,19 @@ public class Template {
                         sb.append("__OTHER(").append(tag.toString()).append(")__");
                      } catch (IOException ex) {
                         Logger.getLogger(Template.class.getName()).log(Level.SEVERE, null, ex);
-                        sb.append("__OTHER(").append(tag.toString()).append(")__");//.append(System.getProperty("user.dir")).append("__");
+                        sb.append("__OTHER(").append(tag.toString()).append(")__");
                      }
                   }
-                  if (c != '}') {
+                  //TODO: clean this part
+                  if (needsSlash) {
+                     if (c != '/') {
+                        for (++i; i < template.length() && (c = template.charAt(i)) != '/'; ++i) ;
+                        if (i == template.length())
+                           throw new MalformedTemplateException();
+                     }
+                     if (++i == template.length() || template.charAt(i) != '}')
+                        throw new MalformedTemplateException();
+                  } else if (c != '}') {
                      for (++i; i < template.length() && (c = template.charAt(i)) != '}'; ++i) ;
                      if (i == template.length())
                         throw new MalformedTemplateException();
