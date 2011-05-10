@@ -45,7 +45,7 @@ public class Template {
                   sb.append('#');
                else if ((c = template.charAt(i)) == '{') {
                   StringBuilder tag = new StringBuilder();
-                  for (++i; i < template.length() && (c = template.charAt(i)) != ' ' && c != '}'; ++i) //TODO: check #{foo/} as is
+                  for (++i; i < template.length() && (c = template.charAt(i)) != ' ' && c != '}'; ++i)
                      tag.append(c);
                   if (i == template.length())
                      throw new MalformedTemplateException();
@@ -72,7 +72,12 @@ public class Template {
                   } else {
                      // TODO: handle other # tags, and complex ones (eg #{foo}#{/foo})
                      // set, get, doLayout, extends, script, list, verbatim, form
-                     needsSlash = true;
+                     if (tag.toString().endsWith("/")) {
+                        --i;
+                        c = ' ';
+                        tag = new StringBuilder(tag.substring(0, tag.length() - 1));
+                     } else
+                        needsSlash = true;
                      Map<String, Object> tagArgs = new HashMap<String, Object>();
                      if (c != '/') {
                         while (c != '/') {
