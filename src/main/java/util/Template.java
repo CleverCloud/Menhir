@@ -84,15 +84,22 @@ public class Template {
                                  char delim = argName.charAt(0);
                                  if ((delim == '\'' || delim == '\"') && delim == argName.charAt(argName.length() - 1))
                                     tagArgs.put("_arg", argName.toString().substring(1, argName.length() - 1));
-                                 else if (args.containsKey(argName.toString().split("\\?")[0].split("\\.")[0])) {
-                                    try {
-                                       tagArgs.put("_arg", new SimpleTemplateEngine().createTemplate("${" + argName.toString().substring(1, argName.length() - 1) + "}").make(args));
-                                    } catch (Exception ex) {
-                                       Logger.getLogger(Template.class.getName()).log(Level.SEVERE, null, ex);
+                                 else {
+                                    String obj = argName.toString().split("\\?")[0].split("\\.")[0];
+                                    if (args.containsKey(obj)) {
+                                       if (argName.toString().equals(obj))
+                                          tagArgs.put("_arg", args.get(obj));
+                                       else {
+                                          try {
+                                             tagArgs.put("_arg", new SimpleTemplateEngine().createTemplate("${" + argName.toString().substring(1, argName.length() - 1) + "}").make(args));
+                                          } catch (Exception ex) {
+                                             Logger.getLogger(Template.class.getName()).log(Level.SEVERE, null, ex);
+                                             throw new MalformedTemplateException();
+                                          }
+                                       }
+                                    } else
                                        throw new MalformedTemplateException();
-                                    }
-                                 } else
-                                    throw new MalformedTemplateException();
+                                 }
                               }
                               for (; i < template.length() && (c = template.charAt(i)) != '}'; ++i) {
                                  if (c != ' ' && c != '/') // TODO: be stricter about simple tags terminaison
@@ -125,15 +132,22 @@ public class Template {
                               ;
                            if (isString)
                               tagArgs.put(argName.toString(), argValue.toString());
-                           else if (args.containsKey(argValue.toString().split("\\?")[0].split("\\.")[0])) {
-                              try {
-                                 tagArgs.put(argName.toString(), new SimpleTemplateEngine().createTemplate("${" + argValue.toString() + "}").make(args));
-                              } catch (Exception ex) {
-                                 Logger.getLogger(Template.class.getName()).log(Level.SEVERE, null, ex);
+                           else {
+                              String obj = argValue.toString().split("\\?")[0].split("\\.")[0];
+                              if (args.containsKey(obj)) {
+                                 if (argValue.toString().equals(obj))
+                                    tagArgs.put(argName.toString(), args.get(obj));
+                                 else {
+                                    try {
+                                       tagArgs.put(argName.toString(), new SimpleTemplateEngine().createTemplate("${" + argValue.toString() + "}").make(args));
+                                    } catch (Exception ex) {
+                                       Logger.getLogger(Template.class.getName()).log(Level.SEVERE, null, ex);
+                                       throw new MalformedTemplateException();
+                                    }
+                                 }
+                              } else
                                  throw new MalformedTemplateException();
-                              }
-                           } else
-                              throw new MalformedTemplateException();
+                           }
                            if (c == ',') {
                               if (++i == template.length())
                                  throw new MalformedTemplateException();

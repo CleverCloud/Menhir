@@ -1,1 +1,1 @@
-Yay anon ! ${_arg} \o/
+Yay anon ! ${_arg} o/

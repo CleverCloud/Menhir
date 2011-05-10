@@ -1,6 +1,7 @@
 package app.controllers;
 
 import app.models.FooBar;
+import app.models.HelloWorldDest;
 import base.Controller;
 import com.google.gson.Gson;
 import javax.ws.rs.GET;
@@ -29,7 +30,7 @@ public class FooBarController extends Controller {
          return Response.status(404).entity("Foobar " + id + " not found.").build();
       Map<String, Object> args = new HashMap<String, Object>();
       args.put("foobar", fooBar);
-      args.put("name", "World");
+      args.put("hwd", new HelloWorldDest("World"));
       return render(args);
    }
    

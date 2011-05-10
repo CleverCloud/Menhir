@@ -1,1 +1,1 @@
-${msg}, ${name} !
+${msg}, ${name.dest} !
