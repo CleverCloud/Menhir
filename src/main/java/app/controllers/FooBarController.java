@@ -29,6 +29,7 @@ public class FooBarController extends Controller {
          return Response.status(404).entity("Foobar " + id + " not found.").build();
       Map<String, Object> args = new HashMap<String, Object>();
       args.put("foobar", fooBar);
+      args.put("name", "World");
       return render(args);
    }
    

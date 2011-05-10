@@ -81,9 +81,17 @@ public class Template {
                               argName.append(c);
                            if (c != ':') {
                               if (argName.length() > 2) {
-                                 if (argName.charAt(0) == argName.charAt(argName.length() - 1))
+                                 char delim = argName.charAt(0);
+                                 if ((delim == '\'' || delim == '\"') && delim == argName.charAt(argName.length() - 1))
                                     tagArgs.put("_arg", argName.toString().substring(1, argName.length() - 1));
-                                 else
+                                 else if (args.containsKey(argName.toString().split("\\?")[0].split("\\.")[0])) {
+                                    try {
+                                       tagArgs.put("_arg", new SimpleTemplateEngine().createTemplate("${" + argName.toString().substring(1, argName.length() - 1) + "}").make(args));
+                                    } catch (Exception ex) {
+                                       Logger.getLogger(Template.class.getName()).log(Level.SEVERE, null, ex);
+                                       throw new MalformedTemplateException();
+                                    }
+                                 } else
                                     throw new MalformedTemplateException();
                               }
                               for (; i < template.length() && (c = template.charAt(i)) != '}'; ++i) {
@@ -100,17 +108,32 @@ public class Template {
                               break;
                            }
                            char delim = template.charAt(i);
-                           if (++i == template.length())
-                              throw new MalformedTemplateException(); // TODO: "Anything special for non-strings ? Control delimiter ?"
+                           boolean isString = (delim == '\'' || delim == '\"');
+                           if (isString) {
+                              if (++i == template.length())
+                                 throw new MalformedTemplateException();
+                           } else
+                              delim = ' ';
                            for (; i < template.length() && (c = template.charAt(i)) != delim && c != '}'; ++i)
                               argValue.append(c);
-                           if (c == '}')
-                              throw new MalformedTemplateException();
-                           if (++i == template.length())
+                           if (c == '}') {
+                              if (delim != ' ')
+                                 throw new MalformedTemplateException();
+                           } else if (++i == template.length())
                               throw new MalformedTemplateException();
                            for (; i < template.length() && (c = template.charAt(i)) == ' ' && c != ',' && c != '}'; ++i)
                               ;
-                           tagArgs.put(argName.toString(), argValue.toString());
+                           if (isString)
+                              tagArgs.put(argName.toString(), argValue.toString());
+                           else if (args.containsKey(argValue.toString().split("\\?")[0].split("\\.")[0])) {
+                              try {
+                                 tagArgs.put(argName.toString(), new SimpleTemplateEngine().createTemplate("${" + argValue.toString() + "}").make(args));
+                              } catch (Exception ex) {
+                                 Logger.getLogger(Template.class.getName()).log(Level.SEVERE, null, ex);
+                                 throw new MalformedTemplateException();
+                              }
+                           } else
+                              throw new MalformedTemplateException();
                            if (c == ',') {
                               if (++i == template.length())
                                  throw new MalformedTemplateException();
