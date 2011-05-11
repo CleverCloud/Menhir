@@ -91,7 +91,7 @@ public class Template {
                            int argNl = argName.length();
                            if (argNl > 0) {
                               char delim = argName.charAt(0);
-                              if (argNl > 2 && (delim == '\'' || delim == '\"') && delim == argName.charAt(argNl - 1)) //TODO: test #{foo bar/}
+                              if (argNl > 2 && (delim == '\'' || delim == '\"') && delim == argName.charAt(argNl - 1))
                                  tagArgs.put("_arg", argNs.substring(1, argNl - 1));
                               else {
                                  String obj = argNs.split("\\?")[0].split("\\.")[0];
@@ -100,7 +100,7 @@ public class Template {
                                        tagArgs.put("_arg", args.get(obj));
                                     else {
                                        try {
-                                          tagArgs.put("_arg", new SimpleTemplateEngine().createTemplate("${" + argNs.substring(1, argNl - 1) + "}").make(args));
+                                          tagArgs.put("_arg", new SimpleTemplateEngine().createTemplate("${" + argNs + "}").make(args));
                                        } catch (Exception ex) {
                                           Logger.getLogger(Template.class.getName()).log(Level.SEVERE, null, ex);
                                           throw new MalformedTemplateException("Failed to evaluate: " + argNs.substring(1, argNl - 1) + " in tag " + ts + " (maybe your forgot to quote it ?)");
