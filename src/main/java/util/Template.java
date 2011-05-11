@@ -84,7 +84,7 @@ public class Template {
                         for (; i < template.length() && template.charAt(i) == ' '; ++i) ;
                         StringBuilder argName = new StringBuilder();
                         StringBuilder argValue = new StringBuilder();
-                        for (; i < template.length() && (c = template.charAt(i)) != ':' && c != '/' && c != ' '; ++i)
+                        for (; i < template.length() && (c = template.charAt(i)) != ':' && c != '/' && c != ' ' && c != '}'; ++i)
                            argName.append(c);
                         String argNs = argName.toString();
                         if (c != ':') {
@@ -111,6 +111,8 @@ public class Template {
                               }
                            }
                            for (; i < template.length() && (c = template.charAt(i)) != '/'; ++i) {
+                              if (c == '}')
+                                 throw new MalformedTemplateException("Error while parsing tag " + ts + " (did you forget to close it with a / ?)");
                               if (c != ' ')
                                  throw new MalformedTemplateException("Unexpected character (" + c + ") found while parsing tag " + ts + " with anonymous argument.");
                            }
@@ -120,7 +122,7 @@ public class Template {
                            throw new MalformedTemplateException("Unexpected EOF while parsing argument " + argNs + " for tag" + ts);
                         for (; i < template.length() && template.charAt(i) == ' '; ++i) ;
                         if (c == '/' || c == '}') {
-                           throw new MalformedTemplateException("Error while parsing argument " + argNs + " for tag" + ts);
+                           throw new MalformedTemplateException("Error while parsing argument " + argNs + " for tag " + ts);
                         }
                         char delim = template.charAt(i);
                         boolean isString = (delim == '\'' || delim == '\"');

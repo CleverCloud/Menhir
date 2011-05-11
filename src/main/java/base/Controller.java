@@ -57,6 +57,7 @@ public class   Controller {
          //templated = engine.createTemplate(Controller.class.getClassLoader().getResource("../views/").getPath()).make(args);
       } catch (MalformedTemplateException ex) {
          Logger.getLogger(Controller.class.getName()).log(Level.SEVERE, null, ex);
+         return Response.serverError().entity(ex.toString()).build();
       } catch (CompilationFailedException ex) {
          Logger.getLogger(caller).log(Level.SEVERE, null, ex);
       } catch (ClassNotFoundException ex) {
