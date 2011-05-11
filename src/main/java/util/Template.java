@@ -72,93 +72,94 @@ public class Template {
                   } else {
                      // TODO: handle other # tags, and complex ones (eg #{foo}#{/foo})
                      // set, get, doLayout, extends, script, list, verbatim, form
-                     if (tag.toString().endsWith("/")) {
+                     if (ts.endsWith("/")) {
                         --i;
                         c = ' ';
                         tag = new StringBuilder(tag.substring(0, tag.length() - 1));
+                        ts = tag.toString();
                      } else
                         needsSlash = true;
                      Map<String, Object> tagArgs = new HashMap<String, Object>();
-                     if (c != '/') {
-                        while (c != '/') {
-                           for (; i < template.length() && template.charAt(i) == ' '; ++i) ;
-                           StringBuilder argName = new StringBuilder();
-                           StringBuilder argValue = new StringBuilder();
-                           for (; i < template.length() && (c = template.charAt(i)) != ':' && c != '/' && c != ' '; ++i)
-                              argName.append(c);
-                           if (c != ':') {
-                              if (argName.length() > 2) {
-                                 char delim = argName.charAt(0);
-                                 if ((delim == '\'' || delim == '\"') && delim == argName.charAt(argName.length() - 1))
-                                    tagArgs.put("_arg", argName.toString().substring(1, argName.length() - 1));
-                                 else {
-                                    String obj = argName.toString().split("\\?")[0].split("\\.")[0];
-                                    if (args.containsKey(obj)) {
-                                       if (argName.toString().equals(obj))
-                                          tagArgs.put("_arg", args.get(obj));
-                                       else {
-                                          try {
-                                             tagArgs.put("_arg", new SimpleTemplateEngine().createTemplate("${" + argName.toString().substring(1, argName.length() - 1) + "}").make(args));
-                                          } catch (Exception ex) {
-                                             Logger.getLogger(Template.class.getName()).log(Level.SEVERE, null, ex);
-                                             throw new MalformedTemplateException();
-                                          }
+                     while (c != '/') {
+                        for (; i < template.length() && template.charAt(i) == ' '; ++i) ;
+                        StringBuilder argName = new StringBuilder();
+                        StringBuilder argValue = new StringBuilder();
+                        for (; i < template.length() && (c = template.charAt(i)) != ':' && c != '/' && c != ' '; ++i)
+                           argName.append(c);
+                        String argNs = argName.toString();
+                        if (c != ':') {
+                           int argNl = argName.length();
+                           if (argNl > 2) {
+                              char delim = argName.charAt(0);
+                              if ((delim == '\'' || delim == '\"') && delim == argName.charAt(argNl - 1))
+                                 tagArgs.put("_arg", argNs.substring(1, argNl - 1));
+                              else {
+                                 String obj = argNs.split("\\?")[0].split("\\.")[0];
+                                 if (args.containsKey(obj)) {
+                                    if (argNs.equals(obj))
+                                       tagArgs.put("_arg", args.get(obj));
+                                    else {
+                                       try {
+                                          tagArgs.put("_arg", new SimpleTemplateEngine().createTemplate("${" + argNs.substring(1, argNl - 1) + "}").make(args));
+                                       } catch (Exception ex) {
+                                          Logger.getLogger(Template.class.getName()).log(Level.SEVERE, null, ex);
+                                          throw new MalformedTemplateException();
                                        }
-                                    } else
-                                       throw new MalformedTemplateException();
-                                 }
-                              }
-                              for (; i < template.length() && (c = template.charAt(i)) != '/'; ++i) {
-                                 if (c != ' ')
+                                    }
+                                 } else
                                     throw new MalformedTemplateException();
                               }
-                              break;
                            }
+                           for (; i < template.length() && (c = template.charAt(i)) != '/'; ++i) {
+                              if (c != ' ')
+                                 throw new MalformedTemplateException();
+                           }
+                           break;
+                        }
+                        if (++i == template.length())
+                           throw new MalformedTemplateException();
+                        for (; i < template.length() && template.charAt(i) == ' '; ++i) ;
+                        if (c == '}') {
+                           tagArgs.put(argNs, null);
+                           break;
+                        }
+                        char delim = template.charAt(i);
+                        boolean isString = (delim == '\'' || delim == '\"');
+                        if (isString) {
                            if (++i == template.length())
                               throw new MalformedTemplateException();
-                           for (; i < template.length() && template.charAt(i) == ' '; ++i) ;
-                           if (c == '}') {
-                              tagArgs.put(argName.toString(), null);
-                              break;
-                           }
-                           char delim = template.charAt(i);
-                           boolean isString = (delim == '\'' || delim == '\"');
-                           if (isString) {
-                              if (++i == template.length())
-                                 throw new MalformedTemplateException();
-                           } else
-                              delim = ' ';
-                           for (; i < template.length() && (c = template.charAt(i)) != delim && c != '/'; ++i)
-                              argValue.append(c);
-                           if (c == '}') {
-                              if (delim != ' ')
-                                 throw new MalformedTemplateException();
-                           } else if (++i == template.length())
+                        } else
+                           delim = ' ';
+                        for (; i < template.length() && (c = template.charAt(i)) != delim && c != '/'; ++i)
+                           argValue.append(c);
+                        if (c == '}') {
+                           if (delim != ' ')
                               throw new MalformedTemplateException();
-                           for (; i < template.length() && (c = template.charAt(i)) == ' ' && c != ',' && c != '/'; ++i)
-                              ;
-                           if (isString)
-                              tagArgs.put(argName.toString(), argValue.toString());
-                           else {
-                              String obj = argValue.toString().split("\\?")[0].split("\\.")[0];
-                              if (args.containsKey(obj)) {
-                                 if (argValue.toString().equals(obj))
-                                    tagArgs.put(argName.toString(), args.get(obj));
-                                 else {
-                                    try {
-                                       tagArgs.put(argName.toString(), new SimpleTemplateEngine().createTemplate("${" + argValue.toString() + "}").make(args));
-                                    } catch (Exception ex) {
-                                       Logger.getLogger(Template.class.getName()).log(Level.SEVERE, null, ex);
-                                       throw new MalformedTemplateException();
-                                    }
+                        } else if (++i == template.length())
+                           throw new MalformedTemplateException();
+                        for (; i < template.length() && template.charAt(i) == ' '; ++i) ;
+                        String argVs = argValue.toString();
+                        if (isString)
+                           tagArgs.put(argNs, argVs);
+                        else {
+                           String obj = argVs.split("\\?")[0].split("\\.")[0];
+                           if (args.containsKey(obj)) {
+                              if (argVs.equals(obj))
+                                 tagArgs.put(argNs, args.get(obj));
+                              else {
+                                 try {
+                                    tagArgs.put(argNs, new SimpleTemplateEngine().createTemplate("${" + argVs + "}").make(args));
+                                 } catch (Exception ex) {
+                                    Logger.getLogger(Template.class.getName()).log(Level.SEVERE, null, ex);
+                                    throw new MalformedTemplateException();
                                  }
-                              } else
-                                 throw new MalformedTemplateException();
-                           }
-                           if (c == ',') {
-                              if (++i == template.length())
-                                 throw new MalformedTemplateException();
-                           }
+                              }
+                           } else
+                              throw new MalformedTemplateException();
+                        }
+                        if (c == ',') {
+                           if (++i == template.length())
+                              throw new MalformedTemplateException();
                         }
                      }
                      try {
@@ -168,10 +169,10 @@ public class Template {
                         sb.append(engine.createTemplate(tagImpl.toString()).make(tagArgs));
                      } catch (ClassNotFoundException ex) {
                         Logger.getLogger(Template.class.getName()).log(Level.SEVERE, null, ex);
-                        sb.append("__OTHER(").append(tag.toString()).append(")__");
+                        sb.append("__OTHER(").append(ts).append(")__");
                      } catch (IOException ex) {
                         Logger.getLogger(Template.class.getName()).log(Level.SEVERE, null, ex);
-                        sb.append("__OTHER(").append(tag.toString()).append(")__");
+                        sb.append("__OTHER(").append(ts).append(")__");
                      }
                   }
                   //TODO: clean this part
