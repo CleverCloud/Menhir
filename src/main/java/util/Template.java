@@ -53,6 +53,7 @@ public class Template {
                   String ts = tag.toString();
                   if (i == template.length())
                      throw new MalformedTemplateException("Unexpected EOF while reading tag: " + ts);
+                  boolean needsSlash = false;
                   if ("if".equals(ts)) {
                      tags.add("if");
                      sb.append("<% if (");
@@ -100,7 +101,7 @@ public class Template {
                            throw new MalformedTemplateException("Unexpected /" + ts + ", did you forgot #{/" + lastTag + "}");
                         tags.remove(lastTagsIndex);
                      } else
-                        tags.add(ts);
+                        needsSlash = true;
                      Map<String, Object> tagArgs = new HashMap<String, Object>();
                      while (c != '/' && c != '}') {
                         for (; i < template.length() && template.charAt(i) == ' '; ++i) ;
@@ -196,6 +197,11 @@ public class Template {
                         sb.append("__OTHER(").append(ts).append(")__");
                      }
                   }
+                  if (needsSlash && c != '/') {
+                     for (; i < template.length() && (c = template.charAt(i)) != '}' && c != '/'; ++i) ;
+                     if (c != '/')
+                        tags.add(ts);
+                  }
                   if (c != '}') {
                      for (++i; i < template.length() && (c = template.charAt(i)) != '}'; ++i) ;
                      if (i == template.length())
@@ -283,6 +289,8 @@ public class Template {
                sb.append(c);
          }
       }
+      if (!tags.isEmpty())
+         throw new MalformedTemplateException("Unexpected EOF, maybe you forgot #{/" + tags.get(tags.size()-1) + "} ?");
       template = sb.toString();
    }
 
