@@ -114,7 +114,7 @@ public class Template {
                               if (c != ' ')
                                  throw new MalformedTemplateException("Unexpected character (" + c + ") found while parsing tag " + ts + " with anonymous argument.");
                            }
-                           break; // TODO: We're at / ?
+                           break;
                         }
                         if (++i == template.length())
                            throw new MalformedTemplateException("Unexpected EOF while parsing argument " + argNs + " for tag" + ts);
