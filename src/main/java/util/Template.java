@@ -89,24 +89,26 @@ public class Template {
                         String argNs = argName.toString();
                         if (c != ':') {
                            int argNl = argName.length();
-                           char delim = argName.charAt(0);
-                           if (argNl > 2 && (delim == '\'' || delim == '\"') && delim == argName.charAt(argNl - 1)) //TODO: test #{foo bar/}
-                              tagArgs.put("_arg", argNs.substring(1, argNl - 1));
-                           else {
-                              String obj = argNs.split("\\?")[0].split("\\.")[0];
-                              if (args.containsKey(obj)) {
-                                 if (argNs.equals(obj))
-                                    tagArgs.put("_arg", args.get(obj));
-                                 else {
-                                    try {
-                                       tagArgs.put("_arg", new SimpleTemplateEngine().createTemplate("${" + argNs.substring(1, argNl - 1) + "}").make(args));
-                                    } catch (Exception ex) {
-                                       Logger.getLogger(Template.class.getName()).log(Level.SEVERE, null, ex);
-                                       throw new MalformedTemplateException("Failed to evaluate: " + argNs.substring(1, argNl - 1) + " in tag " + ts + " (maybe your forgot to quote it ?)");
+                           if (argNl > 0) {
+                              char delim = argName.charAt(0);
+                              if (argNl > 2 && (delim == '\'' || delim == '\"') && delim == argName.charAt(argNl - 1)) //TODO: test #{foo bar/}
+                                 tagArgs.put("_arg", argNs.substring(1, argNl - 1));
+                              else {
+                                 String obj = argNs.split("\\?")[0].split("\\.")[0];
+                                 if (args.containsKey(obj)) {
+                                    if (argNs.equals(obj))
+                                       tagArgs.put("_arg", args.get(obj));
+                                    else {
+                                       try {
+                                          tagArgs.put("_arg", new SimpleTemplateEngine().createTemplate("${" + argNs.substring(1, argNl - 1) + "}").make(args));
+                                       } catch (Exception ex) {
+                                          Logger.getLogger(Template.class.getName()).log(Level.SEVERE, null, ex);
+                                          throw new MalformedTemplateException("Failed to evaluate: " + argNs.substring(1, argNl - 1) + " in tag " + ts + " (maybe your forgot to quote it ?)");
+                                       }
                                     }
-                                 }
-                              } else
-                                 tagArgs.put("_arg", null);
+                                 } else
+                                    tagArgs.put("_arg", null);
+                              }
                            }
                            for (; i < template.length() && (c = template.charAt(i)) != '/'; ++i) {
                               if (c != ' ')
@@ -134,7 +136,7 @@ public class Template {
                               throw new MalformedTemplateException("Error while parsing argument " + argNs + " for tag " + ts + " (Missing delimiter " + delim + ")");
                         } else if (++i == template.length())
                            throw new MalformedTemplateException("Unexpected EOF while parsing tag " + ts);
-                        for (; i < template.length() && template.charAt(i) == ' '; ++i) ;
+                        for (; i < template.length() && (c = template.charAt(i)) == ' '; ++i) ;
                         String argVs = argValue.toString();
                         if (isString)
                            tagArgs.put(argNs, argVs);
