@@ -51,7 +51,7 @@ public class   Controller {
       Writable templated = null;
       Template template = null;
       try {
-         template =  new Template(templateFile);
+         template =  new Template(templateFile, null);
          template.compute(args);
          templated = engine.createTemplate(template.toString()).make(args);
          //templated = engine.createTemplate(Controller.class.getClassLoader().getResource("../views/").getPath()).make(args);

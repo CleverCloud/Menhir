@@ -15,10 +15,10 @@ import java.util.logging.Logger;
  */
 public class Template {
 
-   protected String template;
-   protected Boolean computed;
+   private String template;
+   private Boolean computed;
 
-   public Template(String fileName) throws IOException {
+   public Template(String fileName, String body) throws IOException {
       StringBuilder sb = new StringBuilder();
       FileReader fr = new FileReader(fileName);
       BufferedReader br = new BufferedReader(fr);
@@ -27,7 +27,7 @@ public class Template {
          sb.append(line).append('\n');
       }
       fr.close();
-      template = sb.toString();
+      template = (body == null) ? sb.toString() : sb.toString().replaceAll("#\\{doBody */\\}", body);
       computed = Boolean.FALSE;
    }
 
@@ -163,7 +163,7 @@ public class Template {
                         }
                      }
                      try {
-                        Template tagImpl = new Template("/home/keruspe/Clever Cloud/Loose/src/main/java/app/views/tags/" + ts + ".tag");
+                        Template tagImpl = new Template("/home/keruspe/Clever Cloud/Loose/src/main/java/app/views/tags/" + ts + ".tag", null);
                         SimpleTemplateEngine engine = new SimpleTemplateEngine();
                         tagImpl.compute(tagArgs);
                         sb.append(engine.createTemplate(tagImpl.toString()).make(tagArgs));
