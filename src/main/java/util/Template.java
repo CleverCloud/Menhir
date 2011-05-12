@@ -31,7 +31,6 @@ public class Template {
    }
 
    public void compute(Map<String, Object> args) throws MalformedTemplateException {
-      //TODO: current tag args to pass it to complex tags
       if (computed)
          return;
       List<String> tags = new ArrayList<String>();
@@ -117,7 +116,7 @@ public class Template {
                         throw new MalformedTemplateException("Unexpected else, did you forgot #{/" + lastTag + "}");
                      sb.append("<% } else { %>");
                   } else {
-                     // TODO: handle other # tags, and complex ones (eg #{foo}#{/foo})
+                     // TODO: handle other play # tags
                      // set, get, doLayout, extends, script, list, verbatim, form
                      custom = true;
                      if (ts.endsWith("/")) {
