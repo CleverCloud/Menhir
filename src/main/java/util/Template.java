@@ -42,11 +42,17 @@ public class Template {
       StringBuilder body = null;
       char c;
       for (int i = 0; i < template.length(); ++i) {
-         switch ((c = template.charAt(i))) {
+         if ((c = template.charAt(i)) != '#' && body != null) {
+            body.append(c);
+            continue;
+         }
+         switch (c) {
             case '#':
-               if (++i == template.length())
+               if (++i == template.length()) {
+                  if (body != null)
+                     throw new MalformedTemplateException("Unexpected EOF while reading " + tags.get(tags.size() - 1) + " body");
                   sb.append('#');
-               else if ((c = template.charAt(i)) == '{') {
+               } else if ((c = template.charAt(i)) == '{') {
                   StringBuilder tag = new StringBuilder();
                   for (++i; i < template.length() && (c = template.charAt(i)) != ' ' && c != '}'; ++i) //TODO: test #{foo }
                      tag.append(c);
@@ -229,9 +235,10 @@ public class Template {
                         sb.append("__OTHER(").append(ts).append(")__");
                      }
                   }
-               } else {
+               } else if (body == null)
                   sb.append('#').append(c);
-               }
+               else
+                  body.append('#').append(c);
                break;
             case '$':
                if (++i == template.length())
