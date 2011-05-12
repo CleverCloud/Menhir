@@ -181,8 +181,10 @@ public class Template {
                         if (c == '/') {
                            if (delim != ' ')
                               throw new MalformedTemplateException("Error while parsing argument " + argNs + " for tag " + ts + " (Missing delimiter " + delim + ")");
-                        } else if (++i == template.length())
-                           throw new MalformedTemplateException("Unexpected EOF while parsing tag " + ts);
+                        } else if (c != '}') {
+                           if (++i == template.length())
+                              throw new MalformedTemplateException("Unexpected EOF while parsing tag " + ts);
+                        }
                         for (; i < template.length() && (c = template.charAt(i)) == ' '; ++i) ;
                         String argVs = argValue.toString();
                         if (isString)
