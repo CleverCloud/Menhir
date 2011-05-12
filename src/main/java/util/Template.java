@@ -59,7 +59,7 @@ public class Template {
                   sb.append('#');
                } else if ((c = template.charAt(i)) == '{') {
                   StringBuilder tag = new StringBuilder();
-                  for (++i; i < template.length() && (c = template.charAt(i)) != ' ' && c != '}'; ++i) //TODO: test #{foo }
+                  for (++i; i < template.length() && (c = template.charAt(i)) != ' ' && c != '}'; ++i)
                      tag.append(c);
                   String ts = tag.toString();
                   if (i == template.length())
@@ -145,7 +145,7 @@ public class Template {
                      sb.append("<% } else { %>");
                   } else {
                      // TODO: handle other play # tags
-                     // set, get, doLayout, extends, script, list, verbatim, form
+                     // set, get, doLayout, extends, script, field, verbatim, form
                      if ("list".equals(ts)) {
                         tags.add("list");
                         builtinComplexTag = true;
