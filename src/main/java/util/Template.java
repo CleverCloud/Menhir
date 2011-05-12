@@ -14,6 +14,7 @@ import java.util.logging.Logger;
  */
 
 //TODO: #{foo}#{foo}#{/foo}#{/foo}
+//TODO: check #{list/} #{form/}
 public class Template {
 
    protected String template;
@@ -97,6 +98,13 @@ public class Template {
                      }
                      body = null;
                      listTag = null;
+                  } else if ("/form".equals(ts)) {
+                     int lastTagIndex = tags.size() - 1;
+                     String lastTag = tags.isEmpty() ? "" : tags.get(lastTagIndex);
+                     if (!lastTag.equals("form"))
+                        throw new MalformedTemplateException("Unexpected /form, did you forget #{/" + lastTag + "}");
+                     tags.remove(lastTagIndex);
+                     sb.append("</form>");
                   } else if (ts.startsWith("/")) {
                      int lastTagIndex = tags.size() - 1;
                      String lastTag = tags.isEmpty() ? "" : tags.get(lastTagIndex);
@@ -148,6 +156,9 @@ public class Template {
                      // set, get, doLayout, extends, script, field, verbatim, form
                      if ("list".equals(ts)) {
                         tags.add("list");
+                        builtinComplexTag = true;
+                     } else if ("form".equals(ts)) {
+                        tags.add("form");
                         builtinComplexTag = true;
                      } else
                         custom = true;
@@ -206,7 +217,7 @@ public class Template {
                               throw new MalformedTemplateException("Error while parsing argument " + argNs + " for tag " + ts + " (Missing data + delimiter " + delim + ")");
                         } else
                            delim = ' ';
-                        for (; i < template.length() && (c = template.charAt(i)) != delim && c != '/' && c != '}' && c != ','; ++i)
+                        for (; i < template.length() && (c = template.charAt(i)) != delim && c != '}' && c != ',' && !(delim == ' ' && c == '/'); ++i)
                            argValue.append(c);
                         if (c == '/') {
                            if (delim != ' ')
@@ -257,6 +268,15 @@ public class Template {
                            throw new MalformedTemplateException("You forgot either the \"as\" argument or the \"items\" one in a #{list} tag");
                         listTag = new ListTag(tagArgs.get("_as").toString());
                         body = new StringBuilder();
+                     } else if ("form".equals(ts)) {
+                        if (!tagArgs.containsKey("_action")) //TODO: supposed to be _arg in play
+                           throw new MalformedTemplateException("No action given in form tag");
+                        sb.append("<form action=\"").append(tagArgs.get("_action")).append("\" method=\"").append(tagArgs.containsKey("_method") ? tagArgs.get("_method") : "POST").append("\" accept-charset=\"utf-8\"");
+                        if (tagArgs.containsKey("_id"))
+                           sb.append(" id=\"").append(tagArgs.get("_id")).append("\"");
+                        if (tagArgs.containsKey("_enctype"))
+                           sb.append(" enctype=\"").append(tagArgs.get("_enctype")).append("\"");
+                        sb.append(">");
                      }
                   }
                   if (c != '}') {
