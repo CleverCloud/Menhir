@@ -67,14 +67,14 @@ public class Template {
                      int lastTagIndex = tags.size() - 1;
                      String lastTag = tags.isEmpty() ? "" : tags.get(lastTagIndex);
                      if (!lastTag.equals("if"))
-                        throw new MalformedTemplateException("Unexpected /if, did you forgot #{/" + lastTag + "}");
+                        throw new MalformedTemplateException("Unexpected /if, did you forget #{/" + lastTag + "}");
                      tags.remove(lastTagIndex);
                      sb.append("<% } %>");
                   } else if (ts.startsWith("/")) {
                      int lastTagIndex = tags.size() - 1;
                      String lastTag = tags.isEmpty() ? "" : tags.get(lastTagIndex);
                      if (!lastTag.equals(ts.substring(1)))
-                        throw new MalformedTemplateException("Unexpected /" + ts + ", did you forgot #{/" + lastTag + "}");
+                        throw new MalformedTemplateException("Unexpected /" + ts + ", did you forget #{/" + lastTag + "}");
                      tags.remove(lastTagIndex);
                      try {
                         ts = ts.substring(1);
@@ -187,22 +187,22 @@ public class Template {
                         for (; i < template.length() && (c = template.charAt(i)) == ' '; ++i) ;
                         String argVs = argValue.toString();
                         if (isString)
-                           tagArgs.put(argNs, argVs);
+                           tagArgs.put("_" + argNs, argVs);
                         else {
                            String obj = argVs.split("\\?")[0].split("\\.")[0];
                            if (args.containsKey(obj)) {
                               if (argVs.equals(obj))
-                                 tagArgs.put(argNs, args.get(obj));
+                                 tagArgs.put("_" + argNs, args.get(obj));
                               else {
                                  try {
-                                    tagArgs.put(argNs, new SimpleTemplateEngine().createTemplate("${" + argVs + "}").make(args));
+                                    tagArgs.put("_" + argNs, new SimpleTemplateEngine().createTemplate("${" + argVs + "}").make(args));
                                  } catch (Exception ex) {
                                     Logger.getLogger(Template.class.getName()).log(Level.SEVERE, null, ex);
                                     throw new MalformedTemplateException("Failed to evaluate " + argNs + " value: " + argVs + " in tag " + ts + " (maybe your forgot to quote it ?)");
                                  }
                               }
                            } else
-                              tagArgs.put(argNs, null);
+                              tagArgs.put("_" + argNs, null);
                         }
                         if (c == ',') {
                            if (++i == template.length())

@@ -1,3 +1,3 @@
-%{ for (Object i : items) { }%
+%{ for (Object i : _items) { }%
 #{doBody/}
 %{ } }%
