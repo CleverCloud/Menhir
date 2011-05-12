@@ -40,6 +40,7 @@ public class Template {
       List<String> tags = new ArrayList<String>();
       computed = Boolean.TRUE;
       StringBuilder sb = new StringBuilder();
+      Map<String, Object> tagArgs = new HashMap<String, Object>();
       StringBuilder body = null;
       char c;
       for (int i = 0; i < template.length(); ++i) {
@@ -61,7 +62,6 @@ public class Template {
                   if (i == template.length())
                      throw new MalformedTemplateException("Unexpected EOF while reading tag: " + ts);
                   boolean custom = false;
-                  Map<String, Object> tagArgs = new HashMap<String, Object>();
                   if (body != null && !(ts.startsWith("/") && tags.get(tags.size() - 1).equals(ts.substring(1)))) {
                      body.append("#{").append(ts).append(c);
                      break;
@@ -92,6 +92,7 @@ public class Template {
                         Logger.getLogger(Template.class.getName()).log(Level.SEVERE, null, ex);
                         sb.append("__OTHER(").append(ts).append(")__");
                      }
+                     tagArgs = new HashMap<String, Object>();
                      body = null;
                   } else if ("if".equals(ts)) {
                      tags.add("if");
@@ -241,6 +242,7 @@ public class Template {
                         Logger.getLogger(Template.class.getName()).log(Level.SEVERE, null, ex);
                         sb.append("__OTHER(").append(ts).append(")__");
                      }
+                     tagArgs = new HashMap<String, Object>();
                   }
                } else if (body == null)
                   sb.append('#').append(c);
