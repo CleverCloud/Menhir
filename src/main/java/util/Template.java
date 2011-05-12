@@ -19,7 +19,6 @@ public class Template {
 
    private String template;
    private Boolean computed;
-   private List<String> tags;
 
    public Template(String fileName, String body) throws IOException {
       StringBuilder sb = new StringBuilder();
@@ -32,12 +31,13 @@ public class Template {
       fr.close();
       template = (body == null) ? sb.toString() : sb.toString().replaceAll("#\\{doBody */\\}", body);
       computed = Boolean.FALSE;
-      tags = new ArrayList<String>();
    }
 
    public void compute(Map<String, Object> args) throws MalformedTemplateException {
       if (computed)
          return;
+      List<String> tags = new ArrayList<String>();
+      String customTag = null;
       computed = Boolean.TRUE;
       StringBuilder sb = new StringBuilder();
       char c;
@@ -48,13 +48,28 @@ public class Template {
                   sb.append('#');
                else if ((c = template.charAt(i)) == '{') {
                   StringBuilder tag = new StringBuilder();
-                  for (++i; i < template.length() && (c = template.charAt(i)) != ' ' && c != '}'; ++i)
+                  for (++i; i < template.length() && (c = template.charAt(i)) != ' ' && c != '}'; ++i) //TODO: test #{foo }
                      tag.append(c);
                   String ts = tag.toString();
                   if (i == template.length())
                      throw new MalformedTemplateException("Unexpected EOF while reading tag: " + ts);
-                  boolean needsSlash = false;
-                  if ("if".equals(ts)) {
+                  boolean custom = false;
+                  Map<String, Object> tagArgs = new HashMap<String, Object>();
+                  if ("/if".equals(ts)) {
+                     int lastTagIndex = tags.size() - 1;
+                     String lastTag = tags.isEmpty() ? "" : tags.get(lastTagIndex);
+                     if (!lastTag.equals("if"))
+                        throw new MalformedTemplateException("Unexpected /if, did you forgot #{/" + lastTag + "}");
+                     tags.remove(lastTagIndex);
+                     sb.append("<% } %>");
+                  } else if (ts.startsWith("/")) {
+                     int lastTagIndex = tags.size() - 1;
+                     String lastTag = tags.isEmpty() ? "" : tags.get(lastTagIndex);
+                     if (!lastTag.equals(ts.substring(1)))
+                        throw new MalformedTemplateException("Unexpected /" + ts + ", did you forgot #{/" + lastTag + "}");
+                     tags.remove(lastTagIndex);
+                     //TODO: /tag
+                  } else if ("if".equals(ts)) {
                      tags.add("if");
                      sb.append("<% if (");
                      for (++i; i < template.length() && (c = template.charAt(i)) != '}'; ++i)
@@ -79,30 +94,16 @@ public class Template {
                      if (!lastTag.equals("if"))
                         throw new MalformedTemplateException("Unexpected else, did you forgot #{/" + lastTag + "}");
                      sb.append("<% } else { %>");
-                  } else if ("/if".equals(ts)) {
-                     int lastTagsIndex = tags.size() - 1;
-                     String lastTag = tags.isEmpty() ? "" : tags.get(lastTagsIndex);
-                     if (!lastTag.equals("if"))
-                        throw new MalformedTemplateException("Unexpected /if, did you forgot #{/" + lastTag + "}");
-                     tags.remove(lastTagsIndex);
-                     sb.append("<% } %>");
                   } else {
                      // TODO: handle other # tags, and complex ones (eg #{foo}#{/foo})
                      // set, get, doLayout, extends, script, list, verbatim, form
+                     custom = true;
                      if (ts.endsWith("/")) {
                         --i;
                         c = ' ';
                         tag = new StringBuilder(tag.substring(0, tag.length() - 1));
                         ts = tag.toString();
-                     } else if (ts.startsWith("/")) {
-                        int lastTagsIndex = tags.size() - 1;
-                        String lastTag = tags.isEmpty() ? "" : tags.get(lastTagsIndex);
-                        if (!lastTag.equals(ts.substring(1)))
-                           throw new MalformedTemplateException("Unexpected /" + ts + ", did you forgot #{/" + lastTag + "}");
-                        tags.remove(lastTagsIndex);
-                     } else
-                        needsSlash = true;
-                     Map<String, Object> tagArgs = new HashMap<String, Object>();
+                     }
                      while (c != '/' && c != '}') {
                         for (; i < template.length() && template.charAt(i) == ' '; ++i) ;
                         StringBuilder argName = new StringBuilder();
@@ -184,6 +185,22 @@ public class Template {
                               throw new MalformedTemplateException("Unexpected EOF after , in tag " + ts);
                         }
                      }
+                  }
+                  boolean simpleTag = false;
+                  if (custom) {
+                     if (c != '/') {
+                        for (; i < template.length() && (c = template.charAt(i)) != '}' && c != '/'; ++i) ;
+                        if (c != '/')
+                           tags.add(ts);
+                     }
+                     simpleTag = (c == '/');
+                  }
+                  if (c != '}') {
+                     for (++i; i < template.length() && (c = template.charAt(i)) != '}'; ++i) ;
+                     if (i == template.length())
+                        throw new MalformedTemplateException("You forgot to close your tag " + ts + " (missing })");
+                  }
+                  if (simpleTag) {
                      try {
                         Template tagImpl = new Template("/home/keruspe/Clever Cloud/Loose/src/main/java/app/views/tags/" + ts + ".tag", null);
                         SimpleTemplateEngine engine = new SimpleTemplateEngine();
@@ -196,16 +213,6 @@ public class Template {
                         Logger.getLogger(Template.class.getName()).log(Level.SEVERE, null, ex);
                         sb.append("__OTHER(").append(ts).append(")__");
                      }
-                  }
-                  if (needsSlash && c != '/') {
-                     for (; i < template.length() && (c = template.charAt(i)) != '}' && c != '/'; ++i) ;
-                     if (c != '/')
-                        tags.add(ts);
-                  }
-                  if (c != '}') {
-                     for (++i; i < template.length() && (c = template.charAt(i)) != '}'; ++i) ;
-                     if (i == template.length())
-                        throw new MalformedTemplateException("You forgot to close your tag " + ts + " (missing })");
                   }
                } else {
                   sb.append('#').append(c);
@@ -290,7 +297,7 @@ public class Template {
          }
       }
       if (!tags.isEmpty())
-         throw new MalformedTemplateException("Unexpected EOF, maybe you forgot #{/" + tags.get(tags.size()-1) + "} ?");
+         throw new MalformedTemplateException("Unexpected EOF, maybe you forgot #{/" + tags.get(tags.size() - 1) + "} ?");
       template = sb.toString();
    }
 
