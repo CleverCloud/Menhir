@@ -5,10 +5,7 @@ import groovy.text.SimpleTemplateEngine;
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -29,7 +26,7 @@ public class Template {
          sb.append(line).append('\n');
       }
       fr.close();
-      template = (body == null) ? sb.toString() : sb.toString().replaceAll("#\\{doBody */\\}", body);
+      template = (body == null) ? sb.toString() : sb.toString().replaceAll("#\\{doBody */\\}", body.replaceAll("\\$", "\\\\\\$"));
       computed = Boolean.FALSE;
    }
 
@@ -178,7 +175,7 @@ public class Template {
                               throw new MalformedTemplateException("Error while parsing argument " + argNs + " for tag " + ts + " (Missing data + delimiter " + delim + ")");
                         } else
                            delim = ' ';
-                        for (; i < template.length() && (c = template.charAt(i)) != delim && c != '/' && c != '}'; ++i)
+                        for (; i < template.length() && (c = template.charAt(i)) != delim && c != '/' && c != '}' && c != ','; ++i)
                            argValue.append(c);
                         if (c == '/') {
                            if (delim != ' ')

@@ -1,9 +1,10 @@
 This is FooBar with foo ${foobar.foo} and bar ${foobar.bar}
 #{if foobar.foo.equals("Yay")}
 blabla
-#{foozor foo:foobar}
+#{foozor foo:foobar, bar:'Baz'}
 foozorBody
 #{anonymous foo.bar/}
+${bar}
 #{/foozor}
 #{elseif false}
 kikoo
@@ -15,6 +16,7 @@ zormao
 foooooooooo
 barrr
 %{ } }%
+<br/>
 #{foobar/}
 #{if null}
 woohoo
@@ -24,3 +26,7 @@ yeepee ${graou} plouf
 \#{escaped/}
 #{hello msg:'Hello', name:hwd/}
 #{anonymous 'Check'/}
+<br/>
+#{list items:list, as:'i'}
+->${i}
+#{/list}

@@ -11,7 +11,9 @@ import javax.ws.rs.PathParam;
 import javax.ws.rs.core.Response;
 import org.bson.types.ObjectId;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -30,6 +32,10 @@ public class FooBarController extends Controller {
       Map<String, Object> args = new HashMap<String, Object>();
       args.put("foobar", fooBar);
       args.put("hwd", new HelloWorldDest("World"));
+      List<String> list = new ArrayList<String>();
+      for (int i = 0; i < 4; ++i)
+         list.add("ListItem" + i);
+      args.put("list", list);
       return render(args);
    }
    
