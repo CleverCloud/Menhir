@@ -12,9 +12,11 @@ import java.util.logging.Logger;
 /**
  * @author keruspe
  */
+
+//TODO: #{foo}#{foo}#{/foo}#{/foo}
 public class Template {
 
-   private String template;
+   protected String template;
    private Boolean computed;
 
    public Template(String fileName, String body) throws IOException {
@@ -30,6 +32,10 @@ public class Template {
       computed = Boolean.FALSE;
    }
 
+   protected Template() {
+      computed = Boolean.FALSE;
+   }
+
    public void compute(Map<String, Object> args) throws MalformedTemplateException {
       if (computed)
          return;
@@ -37,6 +43,7 @@ public class Template {
       computed = Boolean.TRUE;
       StringBuilder sb = new StringBuilder();
       Map<String, Object> tagArgs = new HashMap<String, Object>();
+      ListTag listTag = null;
       StringBuilder body = null;
       char c;
       for (int i = 0; i < template.length(); ++i) {
@@ -58,6 +65,7 @@ public class Template {
                   if (i == template.length())
                      throw new MalformedTemplateException("Unexpected EOF while reading tag: " + ts);
                   boolean custom = false;
+                  boolean builtinComplexTag = false;
                   if (body != null && !(ts.startsWith("/") && tags.get(tags.size() - 1).equals(ts.substring(1)))) {
                      body.append("#{").append(ts).append(c);
                      break;
@@ -69,6 +77,26 @@ public class Template {
                         throw new MalformedTemplateException("Unexpected /if, did you forget #{/" + lastTag + "}");
                      tags.remove(lastTagIndex);
                      sb.append("<% } %>");
+                  } else if ("/list".equals(ts)) {
+                     int lastTagIndex = tags.size() - 1;
+                     String lastTag = tags.isEmpty() ? "" : tags.get(lastTagIndex);
+                     if (!lastTag.equals("list"))
+                        throw new MalformedTemplateException("Unexpected /list, did you forget #{/" + lastTag + "}");
+                     tags.remove(lastTagIndex);
+                     listTag.addBody(body.toString());
+                     try {
+                        SimpleTemplateEngine engine = new SimpleTemplateEngine();
+                        listTag.compute(tagArgs);
+                        sb.append(engine.createTemplate(listTag.toString()).make(tagArgs));
+                     } catch (ClassNotFoundException ex) {
+                        Logger.getLogger(Template.class.getName()).log(Level.SEVERE, null, ex);
+                        sb.append("__OTHER(").append(ts).append(")__");
+                     } catch (IOException ex) {
+                        Logger.getLogger(Template.class.getName()).log(Level.SEVERE, null, ex);
+                        sb.append("__OTHER(").append(ts).append(")__");
+                     }
+                     body = null;
+                     listTag = null;
                   } else if (ts.startsWith("/")) {
                      int lastTagIndex = tags.size() - 1;
                      String lastTag = tags.isEmpty() ? "" : tags.get(lastTagIndex);
@@ -118,7 +146,11 @@ public class Template {
                   } else {
                      // TODO: handle other play # tags
                      // set, get, doLayout, extends, script, list, verbatim, form
-                     custom = true;
+                     if ("list".equals(ts)) {
+                        tags.add("list");
+                        builtinComplexTag = true;
+                     } else
+                        custom = true;
                      if (ts.endsWith("/")) {
                         --i;
                         c = ' ';
@@ -219,6 +251,13 @@ public class Template {
                         }
                      }
                      simpleTag = (c == '/');
+                  } else if (builtinComplexTag) {
+                     if ("list".equals(ts)) {
+                        if (tagArgs.size() != 2 || !tagArgs.containsKey("_as") || !tagArgs.containsKey("_items"))
+                           throw new MalformedTemplateException("You forgot either the \"as\" argument or the \"items\" one in a #{list} tag");
+                        listTag = new ListTag(tagArgs.get("_as").toString());
+                        body = new StringBuilder();
+                     }
                   }
                   if (c != '}') {
                      for (++i; i < template.length() && (c = template.charAt(i)) != '}'; ++i) ;
