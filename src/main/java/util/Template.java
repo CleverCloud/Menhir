@@ -37,9 +37,9 @@ public class Template {
       if (computed)
          return;
       List<String> tags = new ArrayList<String>();
-      String customTag = null;
       computed = Boolean.TRUE;
       StringBuilder sb = new StringBuilder();
+      StringBuilder body = null;
       char c;
       for (int i = 0; i < template.length(); ++i) {
          switch ((c = template.charAt(i))) {
@@ -68,7 +68,20 @@ public class Template {
                      if (!lastTag.equals(ts.substring(1)))
                         throw new MalformedTemplateException("Unexpected /" + ts + ", did you forgot #{/" + lastTag + "}");
                      tags.remove(lastTagIndex);
-                     //TODO: /tag
+                     try {
+                        ts = ts.substring(1);
+                        Template tagImpl = new Template("/home/keruspe/Clever Cloud/Loose/src/main/java/app/views/tags/" + ts + ".tag", body.toString());
+                        SimpleTemplateEngine engine = new SimpleTemplateEngine();
+                        tagImpl.compute(tagArgs);
+                        sb.append(engine.createTemplate(tagImpl.toString()).make(tagArgs));
+                     } catch (ClassNotFoundException ex) {
+                        Logger.getLogger(Template.class.getName()).log(Level.SEVERE, null, ex);
+                        sb.append("__OTHER(").append(ts).append(")__");
+                     } catch (IOException ex) {
+                        Logger.getLogger(Template.class.getName()).log(Level.SEVERE, null, ex);
+                        sb.append("__OTHER(").append(ts).append(")__");
+                     }
+                     body = null;
                   } else if ("if".equals(ts)) {
                      tags.add("if");
                      sb.append("<% if (");
@@ -190,8 +203,10 @@ public class Template {
                   if (custom) {
                      if (c != '/') {
                         for (; i < template.length() && (c = template.charAt(i)) != '}' && c != '/'; ++i) ;
-                        if (c != '/')
+                        if (c != '/') {
                            tags.add(ts);
+                           body = new StringBuilder();
+                        }
                      }
                      simpleTag = (c == '/');
                   }
