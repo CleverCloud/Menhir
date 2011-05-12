@@ -61,6 +61,10 @@ public class Template {
                      throw new MalformedTemplateException("Unexpected EOF while reading tag: " + ts);
                   boolean custom = false;
                   Map<String, Object> tagArgs = new HashMap<String, Object>();
+                  if (body != null && !(ts.startsWith("/") && tags.get(tags.size() - 1).equals(ts.substring(1)))) {
+                     body.append("#{").append(ts).append(c);
+                     break;
+                  }
                   if ("/if".equals(ts)) {
                      int lastTagIndex = tags.size() - 1;
                      String lastTag = tags.isEmpty() ? "" : tags.get(lastTagIndex);
