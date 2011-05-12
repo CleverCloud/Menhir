@@ -34,6 +34,7 @@ public class Template {
    }
 
    public void compute(Map<String, Object> args) throws MalformedTemplateException {
+      //TODO: current tag args to pass it to complex tags
       if (computed)
          return;
       List<String> tags = new ArrayList<String>();
