@@ -70,11 +70,11 @@ public class Template {
                      body.append("#{").append(ts).append(c);
                      break;
                   }
-                  if ("/if".equals(ts)) {
+                  if ("/if".equals(ts) || "/elseif".equals(ts) || "/else".equals(ts)) { //TODO: is it really necessary to support those?
                      int lastTagIndex = tags.size() - 1;
                      String lastTag = tags.isEmpty() ? "" : tags.get(lastTagIndex);
                      if (!lastTag.equals("if"))
-                        throw new MalformedTemplateException("Unexpected /if, did you forget #{/" + lastTag + "}");
+                        throw new MalformedTemplateException("Unexpected " + ts + ", did you forget #{/" + lastTag + "}");
                      tags.remove(lastTagIndex);
                      sb.append("<% } %>");
                   } else if ("/list".equals(ts)) {
