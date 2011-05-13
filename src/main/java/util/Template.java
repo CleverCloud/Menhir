@@ -100,7 +100,7 @@ public class Template {
                      body = null;
                      listTag = null;
                      tagArgs = new HashMap<String, Object>();
-                  } else if ("/form".equals(ts) || "/script".equals(ts)) {
+                  } else if ("/form".equals(ts) || "/script".equals(ts) || "/a".equals(ts)) {
                      if (!lastTag.equals(ts.substring(1)))
                         throw new MalformedTemplateException("Unexpected " + ts + ", did you forget #{/" + lastTag + "}");
                      tags.remove(lastTagIndex);
@@ -154,7 +154,7 @@ public class Template {
                   } else {
                      // TODO: handle other play # tags
                      // set, get, doLayout, extends, script, field, verbatim, form
-                     if ("list".equals(ts) || "form".equals(ts) || "script".equals(ts)) {
+                     if ("list".equals(ts) || "form".equals(ts) || "script".equals(ts) || "a".equals(ts)) {
                         tags.add(ts);
                         builtinComplexTag = true;
                      } else
@@ -307,6 +307,10 @@ public class Template {
                            sb.append(" id=\"").append(tagArgs.get("_id")).append("\"");
                         sb.append(">");
                         tagArgs = new HashMap<String, Object>();
+                     } else if ("a".equals(ts)) {
+                        if (!tagArgs.containsKey("_arg"))
+                           throw new MalformedTemplateException("Argument missing in #{a}");
+                        sb.append("<a href=\"").append(tagArgs.get("_arg")).append("\">");
                      }
                      if (c == '/') {
                         if ("script".equals(ts)) {
