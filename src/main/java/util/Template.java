@@ -13,7 +13,6 @@ import java.util.logging.Logger;
  * @author keruspe
  */
 
-//TODO: #{foo}#{foo}#{/foo}#{/foo}
 public class Template {
 
    protected String template;
@@ -45,6 +44,7 @@ public class Template {
       Map<String, Object> tagArgs = new HashMap<String, Object>();
       ListTag listTag = null;
       StringBuilder body = null;
+      int nestLevel = 0;
       char c;
       for (int i = 0; i < template.length(); ++i) {
          if ((c = template.charAt(i)) != '#' && body != null) {
@@ -66,20 +66,22 @@ public class Template {
                      throw new MalformedTemplateException("Unexpected EOF while reading tag: " + ts);
                   boolean custom = false;
                   boolean builtinComplexTag = false;
-                  if (body != null && !(ts.startsWith("/") && tags.get(tags.size() - 1).equals(ts.substring(1)))) {
+                  int lastTagIndex = tags.size() - 1;
+                  String lastTag = tags.isEmpty() ? "" : tags.get(lastTagIndex);
+                  if (body != null && (!(ts.startsWith("/") && lastTag.equals(ts.substring(1))) || nestLevel > 0)) {
+                     if (ts.equals(lastTag))
+                        ++nestLevel;
+                     else if (lastTag.equals(ts.substring(1)))
+                        --nestLevel;
                      body.append("#{").append(ts).append(c);
                      break;
                   }
                   if ("/if".equals(ts) || "/elseif".equals(ts) || "/else".equals(ts)) { //TODO: is it really necessary to support those?
-                     int lastTagIndex = tags.size() - 1;
-                     String lastTag = tags.isEmpty() ? "" : tags.get(lastTagIndex);
                      if (!lastTag.equals("if"))
                         throw new MalformedTemplateException("Unexpected " + ts + ", did you forget #{/" + lastTag + "}");
                      tags.remove(lastTagIndex);
                      sb.append("<% } %>");
                   } else if ("/list".equals(ts)) {
-                     int lastTagIndex = tags.size() - 1;
-                     String lastTag = tags.isEmpty() ? "" : tags.get(lastTagIndex);
                      if (!lastTag.equals("list"))
                         throw new MalformedTemplateException("Unexpected /list, did you forget #{/" + lastTag + "}");
                      tags.remove(lastTagIndex);
@@ -99,15 +101,11 @@ public class Template {
                      listTag = null;
                      tagArgs = new HashMap<String, Object>();
                   } else if ("/form".equals(ts) || "/script".equals(ts)) {
-                     int lastTagIndex = tags.size() - 1;
-                     String lastTag = tags.isEmpty() ? "" : tags.get(lastTagIndex);
                      if (!lastTag.equals(ts.substring(1)))
                         throw new MalformedTemplateException("Unexpected " + ts + ", did you forget #{/" + lastTag + "}");
                      tags.remove(lastTagIndex);
                      sb.append("<" + ts + ">");
                   } else if (ts.startsWith("/")) {
-                     int lastTagIndex = tags.size() - 1;
-                     String lastTag = tags.isEmpty() ? "" : tags.get(lastTagIndex);
                      if (!lastTag.equals(ts.substring(1)))
                         throw new MalformedTemplateException("Unexpected /" + ts + ", did you forget #{/" + lastTag + "}");
                      tags.remove(lastTagIndex);
@@ -143,7 +141,6 @@ public class Template {
                         throw new MalformedTemplateException("#{ifnot /} is not allowed");
                      sb.append(")) { %>");
                   } else if ("elseif".equals(ts)) {
-                     String lastTag = tags.isEmpty() ? "" : tags.get(tags.size() - 1);
                      if (!lastTag.equals("if"))
                         throw new MalformedTemplateException("Unexpected elseif, did you forgot #{/" + lastTag + "}");
                      sb.append("<% } else if (");
@@ -151,7 +148,6 @@ public class Template {
                         sb.append(c);
                      sb.append(") { %>");
                   } else if ("else".equals(ts)) {
-                     String lastTag = tags.isEmpty() ? "" : tags.get(tags.size() - 1);
                      if (!lastTag.equals("if"))
                         throw new MalformedTemplateException("Unexpected else, did you forgot #{/" + lastTag + "}");
                      sb.append("<% } else { %>");
