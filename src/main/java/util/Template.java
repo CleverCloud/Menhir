@@ -98,6 +98,7 @@ public class Template {
                      }
                      body = null;
                      listTag = null;
+                     tagArgs = new HashMap<String, Object>();
                   } else if ("/form".equals(ts)) {
                      int lastTagIndex = tags.size() - 1;
                      String lastTag = tags.isEmpty() ? "" : tags.get(lastTagIndex);
@@ -105,6 +106,7 @@ public class Template {
                         throw new MalformedTemplateException("Unexpected /form, did you forget #{/" + lastTag + "}");
                      tags.remove(lastTagIndex);
                      sb.append("</form>");
+                     tagArgs = new HashMap<String, Object>();
                   } else if (ts.startsWith("/")) {
                      int lastTagIndex = tags.size() - 1;
                      String lastTag = tags.isEmpty() ? "" : tags.get(lastTagIndex);
@@ -172,15 +174,26 @@ public class Template {
                         for (; i < template.length() && template.charAt(i) == ' '; ++i) ;
                         StringBuilder argName = new StringBuilder();
                         StringBuilder argValue = new StringBuilder();
-                        for (; i < template.length() && (c = template.charAt(i)) != ':' && c != '/' && c != ' ' && c != '}'; ++i)
-                           argName.append(c);
+                        char delim = template.charAt(i);
+                        boolean isString = (delim == '\'' || delim == '\"');
+                        if (isString) {
+                           if (++i == template.length())
+                              throw new MalformedTemplateException("Error while parsing tag " + ts + " (Missing data + delimiter " + delim + ")");
+                           for (; i < template.length() && (c = template.charAt(i)) != delim; ++i)
+                              argName.append(c);
+                           if (++i == template.length())
+                              throw new MalformedTemplateException("Error while parsing tag " + ts + " (Missing delimiter " + delim + ")");
+                           c = template.charAt(i);
+                        } else {
+                           for (; i < template.length() && (c = template.charAt(i)) != ':' && c != '/' && c != ' ' && c != '}' && c != ','; ++i)
+                              argName.append(c);
+                        }
                         String argNs = argName.toString();
                         if (c != ':') {
                            int argNl = argName.length();
                            if (argNl > 0) {
-                              char delim = argName.charAt(0);
-                              if (argNl > 2 && (delim == '\'' || delim == '\"') && delim == argName.charAt(argNl - 1))
-                                 tagArgs.put("_arg", argNs.substring(1, argNl - 1));
+                              if (isString)
+                                 tagArgs.put("_arg", argNs);
                               else {
                                  String obj = argNs.split("\\?")[0].split("\\.")[0];
                                  if (args.containsKey(obj)) {
@@ -191,16 +204,21 @@ public class Template {
                                           tagArgs.put("_arg", new SimpleTemplateEngine().createTemplate("${" + argNs + "}").make(args));
                                        } catch (Exception ex) {
                                           Logger.getLogger(Template.class.getName()).log(Level.SEVERE, null, ex);
-                                          throw new MalformedTemplateException("Failed to evaluate: " + argNs.substring(1, argNl - 1) + " in tag " + ts + " (maybe your forgot to quote it ?)");
+                                          throw new MalformedTemplateException("Failed to evaluate: " + argNs + " in tag " + ts + " (maybe your forgot to quote it ?)");
                                        }
                                     }
                                  } else
                                     tagArgs.put("_arg", null);
                               }
                            }
-                           for (; i < template.length() && (c = template.charAt(i)) != '/' && c != '}'; ++i) {
-                              if (c != ' ')
+                           for (; i < template.length() && (c = template.charAt(i)) != '/' && c != '}' && c != ','; ++i) {
+                              if (c != ' ' && c != ',')
                                  throw new MalformedTemplateException("Unexpected character (" + c + ") found while parsing tag " + ts + " with anonymous argument.");
+                           }
+                           if (c == ',') {
+                              if (++i == template.length())
+                                 throw new MalformedTemplateException("Error while parsing tag " + ts + " nothing found after ','");
+                              continue;
                            }
                            break;
                         }
@@ -210,19 +228,21 @@ public class Template {
                         if (c == '/' || c == '}') {
                            throw new MalformedTemplateException("Error while parsing argument " + argNs + " for tag " + ts);
                         }
-                        char delim = template.charAt(i);
-                        boolean isString = (delim == '\'' || delim == '\"');
+                        delim = template.charAt(i);
+                        isString = (delim == '\'' || delim == '\"');
                         if (isString) {
                            if (++i == template.length())
                               throw new MalformedTemplateException("Error while parsing argument " + argNs + " for tag " + ts + " (Missing data + delimiter " + delim + ")");
-                        } else
-                           delim = ' ';
-                        for (; i < template.length() && (c = template.charAt(i)) != delim && c != '}' && c != ',' && !(delim == ' ' && c == '/'); ++i)
-                           argValue.append(c);
-                        if (c == '/') {
-                           if (delim != ' ')
+                           for (; i < template.length() && (c = template.charAt(i)) != delim; ++i)
+                              argValue.append(c);
+                           if (++i == template.length())
                               throw new MalformedTemplateException("Error while parsing argument " + argNs + " for tag " + ts + " (Missing delimiter " + delim + ")");
-                        } else if (c != '}') {
+                           c = template.charAt(i);
+                        } else {
+                           for (; i < template.length() && (c = template.charAt(i)) != '}' && c != ',' && c != '/'; ++i)
+                              argValue.append(c);
+                        }
+                        if (c != '}' && c != '/') {
                            if (++i == template.length())
                               throw new MalformedTemplateException("Unexpected EOF while parsing tag " + ts);
                         }
@@ -269,9 +289,15 @@ public class Template {
                         listTag = new ListTag(tagArgs.get("_as").toString());
                         body = new StringBuilder();
                      } else if ("form".equals(ts)) {
-                        if (!tagArgs.containsKey("_action")) //TODO: supposed to be _arg in play
-                           throw new MalformedTemplateException("No action given in form tag");
-                        sb.append("<form action=\"").append(tagArgs.get("_action")).append("\" method=\"").append(tagArgs.containsKey("_method") ? tagArgs.get("_method") : "POST").append("\" accept-charset=\"utf-8\"");
+                        String action;
+                        if (!tagArgs.containsKey("_action")) {
+                           Object tmp = tagArgs.get("_arg");
+                           if (tmp == null)
+                              throw new MalformedTemplateException("No action given in form tag");
+                           action = tmp.toString();
+                        } else
+                           action = tagArgs.get("_action").toString();
+                        sb.append("<form action=\"").append(action).append("\" method=\"").append(tagArgs.containsKey("_method") ? tagArgs.get("_method") : "POST").append("\" accept-charset=\"utf-8\"");
                         if (tagArgs.containsKey("_id"))
                            sb.append(" id=\"").append(tagArgs.get("_id")).append("\"");
                         if (tagArgs.containsKey("_enctype"))
