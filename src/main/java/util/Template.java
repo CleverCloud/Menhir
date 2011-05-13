@@ -14,7 +14,6 @@ import java.util.logging.Logger;
  */
 
 //TODO: #{foo}#{foo}#{/foo}#{/foo}
-//TODO: handle #{script /}
 public class Template {
 
    protected String template;
@@ -106,7 +105,6 @@ public class Template {
                         throw new MalformedTemplateException("Unexpected " + ts + ", did you forget #{/" + lastTag + "}");
                      tags.remove(lastTagIndex);
                      sb.append("<" + ts + ">");
-                     tagArgs = new HashMap<String, Object>();
                   } else if (ts.startsWith("/")) {
                      int lastTagIndex = tags.size() - 1;
                      String lastTag = tags.isEmpty() ? "" : tags.get(lastTagIndex);
@@ -133,7 +131,7 @@ public class Template {
                      sb.append("<% if (");
                      for (++i; i < template.length() && (c = template.charAt(i)) != '}'; ++i)
                         sb.append(c);
-                     if (template.charAt(i-1) == '/')
+                     if (template.charAt(i - 1) == '/')
                         throw new MalformedTemplateException("#{if /} is not allowed");
                      sb.append(") { %>");
                   } else if ("ifnot".equals(ts)) {
@@ -141,7 +139,7 @@ public class Template {
                      sb.append("<% } if (!(");
                      for (++i; i < template.length() && (c = template.charAt(i)) != '}'; ++i)
                         sb.append(c);
-                     if (template.charAt(i-1) == '/')
+                     if (template.charAt(i - 1) == '/')
                         throw new MalformedTemplateException("#{ifnot /} is not allowed");
                      sb.append(")) { %>");
                   } else if ("elseif".equals(ts)) {
@@ -284,8 +282,6 @@ public class Template {
                      }
                      simpleTag = (c == '/');
                   } else if (builtinComplexTag) {
-                     if (c == '/')
-                        throw new MalformedTemplateException("#{" + ts + " /} is not allowed");
                      if ("list".equals(ts)) {
                         if (tagArgs.size() != 2 || !tagArgs.containsKey("_as") || !tagArgs.containsKey("_items"))
                            throw new MalformedTemplateException("You forgot either the \"as\" argument or the \"items\" one in a #{list} tag");
@@ -300,12 +296,13 @@ public class Template {
                            action = tmp.toString();
                         } else
                            action = tagArgs.get("_action").toString();
-                        sb.append("<form action=\"").append(action).append("\" accept-charset=\"utf-8\" enctype=\"").append(tagArgs.containsKey("_enctype")?tagArgs.get("_enctype") : "application/x-www-form-urlencoded").append("\"");
+                        sb.append("<form action=\"").append(action).append("\" accept-charset=\"utf-8\" enctype=\"").append(tagArgs.containsKey("_enctype") ? tagArgs.get("_enctype") : "application/x-www-form-urlencoded").append("\"");
                         if (tagArgs.containsKey("_id"))
                            sb.append(" id=\"").append(tagArgs.get("_id")).append("\"");
                         if (tagArgs.containsKey("_method"))
                            sb.append(" method=\"").append(tagArgs.get("_method")).append("\"");
                         sb.append(">");
+                        tagArgs = new HashMap<String, Object>();
                      } else if ("script".equals(ts)) {
                         if (!tagArgs.containsKey("_src"))
                            throw new MalformedTemplateException("Missing src in #{script}");
@@ -313,10 +310,22 @@ public class Template {
                         if (tagArgs.containsKey("_id"))
                            sb.append(" id=\"").append(tagArgs.get("_id")).append("\"");
                         sb.append(">");
+                        tagArgs = new HashMap<String, Object>();
+                     }
+                     if (c == '/') {
+                        if ("script".equals(ts)) {
+                           if (!tags.remove(tags.size() - 1).equals("script"))
+                              throw new RuntimeException("Anything went wrong, we should never get there");
+                           sb.append("</script>");
+                        } else
+                           throw new MalformedTemplateException("#{" + ts + " /} is not allowed");
                      }
                   }
                   if (c != '}') {
-                     for (++i; i < template.length() && (c = template.charAt(i)) != '}'; ++i) ;
+                     for (++i; i < template.length() && (c = template.charAt(i)) != '}'; ++i) {
+                        if (c != ' ')
+                           throw new MalformedTemplateException("Unexpected character (" + c + ") before " + ts + " ending");
+                     }
                      if (i == template.length())
                         throw new MalformedTemplateException("You forgot to close your tag " + ts + " (missing })");
                   }
