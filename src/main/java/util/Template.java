@@ -134,12 +134,16 @@ public class Template {
                      sb.append("<% if (");
                      for (++i; i < template.length() && (c = template.charAt(i)) != '}'; ++i)
                         sb.append(c);
+                     if (template.charAt(i-1) == '/')
+                        throw new MalformedTemplateException("#{if /} is not allowed");
                      sb.append(") { %>");
                   } else if ("ifnot".equals(ts)) {
                      tags.add("if");
                      sb.append("<% } if (!(");
                      for (++i; i < template.length() && (c = template.charAt(i)) != '}'; ++i)
                         sb.append(c);
+                     if (template.charAt(i-1) == '/')
+                        throw new MalformedTemplateException("#{ifnot /} is not allowed");
                      sb.append(")) { %>");
                   } else if ("elseif".equals(ts)) {
                      String lastTag = tags.isEmpty() ? "" : tags.get(tags.size() - 1);
