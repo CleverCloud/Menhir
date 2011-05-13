@@ -283,34 +283,35 @@ public class Template {
                            throw new MalformedTemplateException("You forgot either the \"as\" argument or the \"items\" one in a #{list} tag");
                         listTag = new ListTag(tagArgs.get("_as").toString());
                         body = new StringBuilder();
-                     } else if ("form".equals(ts)) {
-                        String action;
-                        if (!tagArgs.containsKey("_action")) {
-                           Object tmp = tagArgs.get("_arg");
-                           if (tmp == null)
-                              throw new MalformedTemplateException("No action given in form tag");
-                           action = tmp.toString();
-                        } else
-                           action = tagArgs.get("_action").toString();
-                        sb.append("<form action=\"").append(action).append("\" accept-charset=\"utf-8\" enctype=\"").append(tagArgs.containsKey("_enctype") ? tagArgs.get("_enctype") : "application/x-www-form-urlencoded").append("\"");
-                        if (tagArgs.containsKey("_id"))
-                           sb.append(" id=\"").append(tagArgs.get("_id")).append("\"");
-                        if (tagArgs.containsKey("_method"))
-                           sb.append(" method=\"").append(tagArgs.get("_method")).append("\"");
-                        sb.append(">");
+                     } else {
+                        if ("form".equals(ts)) {
+                           String action;
+                           if (!tagArgs.containsKey("_action")) {
+                              Object tmp = tagArgs.get("_arg");
+                              if (tmp == null)
+                                 throw new MalformedTemplateException("No action given in form tag");
+                              action = tmp.toString();
+                           } else
+                              action = tagArgs.get("_action").toString();
+                           sb.append("<form action=\"").append(action).append("\" accept-charset=\"utf-8\" enctype=\"").append(tagArgs.containsKey("_enctype") ? tagArgs.get("_enctype") : "application/x-www-form-urlencoded").append("\"");
+                           if (tagArgs.containsKey("_id"))
+                              sb.append(" id=\"").append(tagArgs.get("_id")).append("\"");
+                           if (tagArgs.containsKey("_method"))
+                              sb.append(" method=\"").append(tagArgs.get("_method")).append("\"");
+                           sb.append(">");
+                        } else if ("script".equals(ts)) {
+                           if (!tagArgs.containsKey("_src"))
+                              throw new MalformedTemplateException("Missing src in #{script}");
+                           sb.append("<script type=\"text/javascript\" src=\"").append(tagArgs.get("_src")).append("\" charset=\"").append(tagArgs.containsKey("_charset") ? tagArgs.get("_charset") : "utf-8").append("\"");
+                           if (tagArgs.containsKey("_id"))
+                              sb.append(" id=\"").append(tagArgs.get("_id")).append("\"");
+                           sb.append(">");
+                        } else if ("a".equals(ts)) {
+                           if (!tagArgs.containsKey("_arg"))
+                              throw new MalformedTemplateException("Argument missing in #{a}");
+                           sb.append("<a href=\"").append(tagArgs.get("_arg")).append("\">");
+                        }
                         tagArgs = new HashMap<String, Object>();
-                     } else if ("script".equals(ts)) {
-                        if (!tagArgs.containsKey("_src"))
-                           throw new MalformedTemplateException("Missing src in #{script}");
-                        sb.append("<script type=\"text/javascript\" src=\"").append(tagArgs.get("_src")).append("\" charset=\"").append(tagArgs.containsKey("_charset") ? tagArgs.get("_charset") : "utf-8").append("\"");
-                        if (tagArgs.containsKey("_id"))
-                           sb.append(" id=\"").append(tagArgs.get("_id")).append("\"");
-                        sb.append(">");
-                        tagArgs = new HashMap<String, Object>();
-                     } else if ("a".equals(ts)) {
-                        if (!tagArgs.containsKey("_arg"))
-                           throw new MalformedTemplateException("Argument missing in #{a}");
-                        sb.append("<a href=\"").append(tagArgs.get("_arg")).append("\">");
                      }
                      if (c == '/') {
                         if ("script".equals(ts)) {
