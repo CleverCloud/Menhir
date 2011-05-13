@@ -295,11 +295,11 @@ public class Template {
                            action = tmp.toString();
                         } else
                            action = tagArgs.get("_action").toString();
-                        sb.append("<form action=\"").append(action).append("\" method=\"").append(tagArgs.containsKey("_method") ? tagArgs.get("_method") : "POST").append("\" accept-charset=\"utf-8\"");
+                        sb.append("<form action=\"").append(action).append("\" accept-charset=\"utf-8\" enctype=\"").append(tagArgs.containsKey("_enctype")?tagArgs.get("_enctype") : "application/x-www-form-urlencoded").append("\"");
                         if (tagArgs.containsKey("_id"))
                            sb.append(" id=\"").append(tagArgs.get("_id")).append("\"");
-                        if (tagArgs.containsKey("_enctype"))
-                           sb.append(" enctype=\"").append(tagArgs.get("_enctype")).append("\"");
+                        if (tagArgs.containsKey("_method"))
+                           sb.append(" method=\"").append(tagArgs.get("_method")).append("\"");
                         sb.append(">");
                      } else if ("script".equals(ts)) {
                         if (!tagArgs.containsKey("_src"))
