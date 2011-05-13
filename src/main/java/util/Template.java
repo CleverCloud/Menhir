@@ -116,7 +116,7 @@ public class Template {
                      tags.remove(lastTagIndex);
                      try {
                         ts = ts.substring(1);
-                        Template tagImpl = new Template("/home/keruspe/Clever Cloud/Loose/src/main/java/app/views/tags/" + ts + ".tag", body.toString());
+                        Template tagImpl = new Template(Config.PATH + "tags/" + ts + ".tag", body.toString());
                         SimpleTemplateEngine engine = new SimpleTemplateEngine();
                         tagImpl.compute(tagArgs);
                         sb.append(engine.createTemplate(tagImpl.toString()).make(tagArgs));
@@ -317,7 +317,7 @@ public class Template {
                   }
                   if (simpleTag) {
                      try {
-                        Template tagImpl = new Template("/home/keruspe/Clever Cloud/Loose/src/main/java/app/views/tags/" + ts + ".tag", null);
+                        Template tagImpl = new Template(Config.PATH + "tags/" + ts + ".tag", null);
                         SimpleTemplateEngine engine = new SimpleTemplateEngine();
                         tagImpl.compute(tagArgs);
                         sb.append(engine.createTemplate(tagImpl.toString()).make(tagArgs));
