@@ -15,6 +15,7 @@ import java.util.logging.Logger;
 
 //TODO: #{foo}#{foo}#{/foo}#{/foo}
 //TODO: check #{list/} #{form/}
+//TODO: handle #{script /}
 public class Template {
 
    protected String template;
@@ -99,13 +100,13 @@ public class Template {
                      body = null;
                      listTag = null;
                      tagArgs = new HashMap<String, Object>();
-                  } else if ("/form".equals(ts)) {
+                  } else if ("/form".equals(ts) || "/script".equals(ts)) {
                      int lastTagIndex = tags.size() - 1;
                      String lastTag = tags.isEmpty() ? "" : tags.get(lastTagIndex);
-                     if (!lastTag.equals("form"))
-                        throw new MalformedTemplateException("Unexpected /form, did you forget #{/" + lastTag + "}");
+                     if (!lastTag.equals(ts.substring(1)))
+                        throw new MalformedTemplateException("Unexpected " + ts + ", did you forget #{/" + lastTag + "}");
                      tags.remove(lastTagIndex);
-                     sb.append("</form>");
+                     sb.append("<" + ts + ">");
                      tagArgs = new HashMap<String, Object>();
                   } else if (ts.startsWith("/")) {
                      int lastTagIndex = tags.size() - 1;
@@ -156,11 +157,8 @@ public class Template {
                   } else {
                      // TODO: handle other play # tags
                      // set, get, doLayout, extends, script, field, verbatim, form
-                     if ("list".equals(ts)) {
-                        tags.add("list");
-                        builtinComplexTag = true;
-                     } else if ("form".equals(ts)) {
-                        tags.add("form");
+                     if ("list".equals(ts) || "form".equals(ts) || "script".equals(ts)) {
+                        tags.add(ts);
                         builtinComplexTag = true;
                      } else
                         custom = true;
@@ -302,6 +300,13 @@ public class Template {
                            sb.append(" id=\"").append(tagArgs.get("_id")).append("\"");
                         if (tagArgs.containsKey("_enctype"))
                            sb.append(" enctype=\"").append(tagArgs.get("_enctype")).append("\"");
+                        sb.append(">");
+                     } else if ("script".equals(ts)) {
+                        if (!tagArgs.containsKey("_src"))
+                           throw new MalformedTemplateException("Missing src in #{script}");
+                        sb.append("<script type=\"text/javascript\" src=\"").append(tagArgs.get("_src")).append("\" charset=\"").append(tagArgs.containsKey("_charset") ? tagArgs.get("_charset") : "utf-8").append("\"");
+                        if (tagArgs.containsKey("_id"))
+                           sb.append(" id=\"").append(tagArgs.get("_id")).append("\"");
                         sb.append(">");
                      }
                   }
