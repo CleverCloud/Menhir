@@ -153,8 +153,8 @@ public class Template {
                      sb.append("<% } else { %>");
                   } else {
                      // TODO: handle other play # tags
-                     // set, get, doLayout, extends, script, field, verbatim, form
-                     if ("list".equals(ts) || "form".equals(ts) || "script".equals(ts) || "a".equals(ts)) {
+                     // set, get, doLayout, extends, field, verbatim, ...
+                     if ("list".equals(ts) || "form".equals(ts) || "script".equals(ts) || "a".equals(ts) || "stylesheet".equals(ts)) {
                         tags.add(ts);
                         builtinComplexTag = true;
                      } else
@@ -310,16 +310,36 @@ public class Template {
                            if (!tagArgs.containsKey("_arg"))
                               throw new MalformedTemplateException("Argument missing in #{a}");
                            sb.append("<a href=\"").append(tagArgs.get("_arg")).append("\">");
+                        } else if ("stylesheet".equals(ts)) {
+                           String src;
+                           if (!tagArgs.containsKey("_src")) {
+                              Object tmp = tagArgs.get("_arg");
+                              if (tmp == null)
+                                 throw new MalformedTemplateException("No src given in form stylesheet");
+                              src = tmp.toString();
+                           } else
+                              src = tagArgs.get("_src").toString();
+                           sb.append("<link rel=\"stylesheet\" type=\"text/css\" href=\"").append(src).append("\"");
+                           if (tagArgs.containsKey("_id"))
+                              sb.append(" id=\"").append(tagArgs.get("_id")).append("\"");
+                           if (tagArgs.containsKey("_media"))
+                              sb.append(" media=\"").append(tagArgs.get("_media")).append("\"");
+                           if (tagArgs.containsKey("_title"))
+                              sb.append(" title=\"").append(tagArgs.get("_title")).append("\"");
+                           sb.append(" />");
                         }
                         tagArgs = new HashMap<String, Object>();
                      }
                      if (c == '/') {
-                        if ("script".equals(ts)) {
-                           if (!tags.remove(tags.size() - 1).equals("script"))
+                        if ("script".equals(ts) || "stylesheet".equals(ts)) {
+                           if (!tags.remove(tags.size() - 1).equals(ts))
                               throw new RuntimeException("Anything went wrong, we should never get there");
-                           sb.append("</script>");
+                           if (!"stylesheet".equals(ts))
+                              sb.append("</").append(ts).append(">");
                         } else
                            throw new MalformedTemplateException("#{" + ts + " /} is not allowed");
+                     } else if ("stylesheet".equals(ts)) {
+                        throw new MalformedTemplateException("Missing / in stylesheet tag");
                      }
                   }
                   if (c != '}') {
