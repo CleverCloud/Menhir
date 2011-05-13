@@ -14,7 +14,6 @@ import java.util.logging.Logger;
  */
 
 //TODO: #{foo}#{foo}#{/foo}#{/foo}
-//TODO: check #{list/} #{form/}
 //TODO: handle #{script /}
 public class Template {
 
@@ -285,6 +284,8 @@ public class Template {
                      }
                      simpleTag = (c == '/');
                   } else if (builtinComplexTag) {
+                     if (c == '/')
+                        throw new MalformedTemplateException("#{" + ts + " /} is not allowed");
                      if ("list".equals(ts)) {
                         if (tagArgs.size() != 2 || !tagArgs.containsKey("_as") || !tagArgs.containsKey("_items"))
                            throw new MalformedTemplateException("You forgot either the \"as\" argument or the \"items\" one in a #{list} tag");
