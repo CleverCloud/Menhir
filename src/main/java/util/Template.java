@@ -225,7 +225,7 @@ public class Template {
                               }
                            }
                            for (; i < template.length() && (c = template.charAt(i)) != '/' && c != '}' && c != ','; ++i) {
-                              if (c != ' ' && c != ',')
+                              if (c != ' ')
                                  throw new MalformedTemplateException("Unexpected character (" + c + ") found while parsing tag " + ts + " with anonymous argument.");
                            }
                            if (c == ',') {
