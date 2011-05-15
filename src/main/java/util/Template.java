@@ -47,9 +47,31 @@ public class Template {
       int nestLevel = 0;
       char c;
       for (int i = 0; i < template.length(); ++i) {
-         if ((c = template.charAt(i)) != '#' && body != null) {
-            body.append(c);
-            continue;
+         c = template.charAt(i);
+         if (body != null) {
+            if (c == '*') { // TODO: weird, check both here and later that it's doing exactly what we want
+               if (++i == template.length())
+                  throw new MalformedTemplateException("Unexpected EOF in " + tags.get(tags.size() - 1));
+               if ((c = template.charAt(i)) == '{') {
+                  Character toAppend = null;
+                  do {
+                     if (toAppend != null)
+                        sb.append(toAppend);
+                     for (++i; i < template.length() && (c = template.charAt(i)) != '}'; ++i) ;
+                     if (i == template.length())
+                        throw new MalformedTemplateException("Unexpected EOF in comment (missing } ?)");
+                     toAppend = '}';
+                  } while (++i < template.length() && (c = template.charAt(i)) != '*');
+                  if (i == template.length())
+                     throw new MalformedTemplateException("Unexpected EOF in comment (missing * ?)");
+               } else {
+                  body.append('*').append(c);
+                  continue;
+               }
+            } else if (c != '#') {
+               body.append(c);
+               continue;
+            }
          }
          switch (c) {
             case '#':
