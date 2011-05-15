@@ -49,25 +49,21 @@ public class Template {
       for (int i = 0; i < template.length(); ++i) {
          c = template.charAt(i);
          if (body != null) {
-            if (c == '*') { // TODO: weird, check both here and later that it's doing exactly what we want
+            if (c == '*') {
                if (++i == template.length())
                   throw new MalformedTemplateException("Unexpected EOF in " + tags.get(tags.size() - 1));
                if ((c = template.charAt(i)) == '{') {
-                  Character toAppend = null;
                   do {
-                     if (toAppend != null)
-                        sb.append(toAppend);
-                     for (++i; i < template.length() && (c = template.charAt(i)) != '}'; ++i) ;
+                     for (; i < template.length() && (c = template.charAt(i)) != '}'; ++i) ;
                      if (i == template.length())
                         throw new MalformedTemplateException("Unexpected EOF in comment (missing } ?)");
-                     toAppend = '}';
                   } while (++i < template.length() && (c = template.charAt(i)) != '*');
                   if (i == template.length())
                      throw new MalformedTemplateException("Unexpected EOF in comment (missing * ?)");
                } else {
                   body.append('*').append(c);
-                  continue;
                }
+               continue;
             } else if (c != '#') {
                body.append(c);
                continue;
@@ -442,14 +438,10 @@ public class Template {
                if (++i == template.length())
                   sb.append('*');
                else if ((c = template.charAt(i)) == '{') {
-                  Character toAppend = null;
                   do {
-                     if (toAppend != null)
-                        sb.append(toAppend);
-                     for (++i; i < template.length() && (c = template.charAt(i)) != '}'; ++i) ;
+                     for (; i < template.length() && (c = template.charAt(i)) != '}'; ++i) ;
                      if (i == template.length())
                         throw new MalformedTemplateException("Unexpected EOF in comment (missing } ?)");
-                     toAppend = '}';
                   } while (++i < template.length() && (c = template.charAt(i)) != '*');
                   if (i == template.length())
                      throw new MalformedTemplateException("Unexpected EOF in comment (missing * ?)");
