@@ -1,4 +1,6 @@
-package util;
+package util.tags;
+
+import util.Template;
 
 /**
  * Created by IntelliJ IDEA.
