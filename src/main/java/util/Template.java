@@ -13,7 +13,8 @@ import java.util.logging.Logger;
 /**
  * @author keruspe
  */
-
+//TODO: #include in #list
+//TODO: forward parent context to complex tags ?
 public class Template {
 
    protected String template;
@@ -84,7 +85,7 @@ public class Template {
                   if (i == template.length())
                      throw new MalformedTemplateException("Unexpected EOF while reading tag: " + ts);
                   boolean custom = false;
-                  boolean builtinComplexTag = false;
+                  boolean builtin = false;
                   int lastTagIndex = tags.size() - 1;
                   String lastTag = tags.isEmpty() ? "" : tags.get(lastTagIndex);
                   if (body != null && (!(ts.startsWith("/") && lastTag.equals(ts.substring(1))) || nestLevel > 0)) {
@@ -173,9 +174,9 @@ public class Template {
                   } else {
                      // TODO: handle other play # tags
                      // set, get, doLayout, extends, field, verbatim, ...
-                     if ("list".equals(ts) || "form".equals(ts) || "script".equals(ts) || "a".equals(ts) || "stylesheet".equals(ts)) {
+                     if ("list".equals(ts) || "form".equals(ts) || "script".equals(ts) || "a".equals(ts) || "stylesheet".equals(ts) || "include".equals(ts)) {
                         tags.add(ts);
-                        builtinComplexTag = true;
+                        builtin = true;
                      } else
                         custom = true;
                      if (ts.endsWith("/")) {
@@ -296,7 +297,7 @@ public class Template {
                         }
                      }
                      simpleTag = (c == '/');
-                  } else if (builtinComplexTag) {
+                  } else if (builtin) {
                      if ("list".equals(ts)) {
                         if (tagArgs.size() != 2 || !tagArgs.containsKey("_as") || !tagArgs.containsKey("_items"))
                            throw new MalformedTemplateException("You forgot either the \"as\" argument or the \"items\" one in a #{list} tag");
@@ -346,19 +347,36 @@ public class Template {
                            if (tagArgs.containsKey("_title"))
                               sb.append(" title=\"").append(tagArgs.get("_title")).append("\"");
                            sb.append(" />");
+                        } else if ("include".equals(ts)) { //TODO: relative or absolute ?
+                           Object tmp = tagArgs.get("_arg");
+                           if (tmp == null)
+                              throw new MalformedTemplateException("No template name given in #{include /}");
+                           try {
+                              Template included = new Template(Config.PATH + tmp.toString(), null);
+                              Map<String, Object> argsCopy = new HashMap<String, Object>(args);
+                              SimpleTemplateEngine engine = new SimpleTemplateEngine();
+                              included.compute(argsCopy);
+                              sb.append(engine.createTemplate(included.toString()).make(argsCopy));
+                           } catch (ClassNotFoundException ex) {
+                              Logger.getLogger(Template.class.getName()).log(Level.SEVERE, null, ex);
+                              sb.append("__OTHER(").append(ts).append(")__");
+                           } catch (IOException ex) {
+                              Logger.getLogger(Template.class.getName()).log(Level.SEVERE, null, ex);
+                              sb.append("__OTHER(").append(ts).append(")__");
+                           }
                         }
                         tagArgs = new HashMap<String, Object>();
                      }
                      if (c == '/') {
-                        if ("script".equals(ts) || "stylesheet".equals(ts)) {
+                        if ("script".equals(ts) || "stylesheet".equals(ts) || "include".equals(ts)) {
                            if (!tags.remove(tags.size() - 1).equals(ts))
                               throw new RuntimeException("Anything went wrong, we should never get there");
-                           if (!"stylesheet".equals(ts))
+                           if ("script".equals(ts))
                               sb.append("</").append(ts).append(">");
                         } else
                            throw new MalformedTemplateException("#{" + ts + " /} is not allowed");
-                     } else if ("stylesheet".equals(ts)) {
-                        throw new MalformedTemplateException("Missing / in stylesheet tag");
+                     } else if ("stylesheet".equals(ts) || "include".equals(ts)) {
+                        throw new MalformedTemplateException("Missing / in " + ts + " tag");
                      }
                   }
                   if (c != '}') {
