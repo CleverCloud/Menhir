@@ -1,6 +1,13 @@
 package util.tags;
 
+import groovy.text.SimpleTemplateEngine;
+import util.MalformedTemplateException;
 import util.Template;
+
+import java.io.IOException;
+import java.util.Map;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * Created by IntelliJ IDEA.
@@ -9,15 +16,37 @@ import util.Template;
  * Time: 15:39
  * To change this template use File | Settings | File Templates.
  */
-public class ListTag extends Template {
+public class ListTag {
    private StringBuilder tpl;
+   private String as;
+   private Iterable items;
+   private Map<String, Object> args;
 
-   public ListTag(String as) {
-      super();
-      tpl = new StringBuilder("%{ for (Object ").append(as).append(" : _items) { }%");
+   public ListTag(Map<String, Object> args) throws IOException {
+      as = args.get("_as").toString();
+      items = (Iterable) args.get("_items");
+      this.args = args;
+      tpl = new StringBuilder();
    }
 
-   public void addBody(String body) {
-      template = tpl.append(body).append(" %{ } }%").toString();
+   public void compute(String body) throws MalformedTemplateException {
+      for (Object o : items) {
+         try {
+            args.put(as, o);
+            Template b = new ListBody(body);
+            SimpleTemplateEngine engine = new SimpleTemplateEngine();
+            b.compute(args);
+            tpl.append(engine.createTemplate(b.toString()).make(args));
+         } catch (ClassNotFoundException ex) { //TODO: throw
+            Logger.getLogger(Template.class.getName()).log(Level.SEVERE, null, ex);
+         } catch (IOException ex) {
+            Logger.getLogger(Template.class.getName()).log(Level.SEVERE, null, ex);
+         }
+      }
+   }
+
+   @Override
+   public String toString() {
+      return tpl.toString();
    }
 }

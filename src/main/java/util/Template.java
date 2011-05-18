@@ -1,5 +1,6 @@
 package util;
 
+import com.sun.java.swing.plaf.windows.WindowsBorders;
 import groovy.text.SimpleTemplateEngine;
 import util.tags.ListTag;
 
@@ -15,7 +16,6 @@ import java.util.regex.Pattern;
 /**
  * @author keruspe
  */
-//TODO: #include in #list
 //TODO: forward parent context to complex tags ?
 public class Template {
 
@@ -42,6 +42,24 @@ public class Template {
       computed = Boolean.FALSE;
    }
 
+
+   protected Template(String tpl) throws IOException {
+      FileToString fts = new FileToString();
+      template = tpl;
+      Pattern p1 = Pattern.compile("(.*)#\\{include *'(.+)' */\\}(.*)");
+      Pattern p2 = Pattern.compile("(.*)#\\{include *\"(.+)\" */\\}(.*)");
+      Matcher m;
+      for (; ; ) {
+         m = p1.matcher(template);
+         if (!m.matches())
+            m = p2.matcher(template);
+         if (!m.matches())
+            break;
+         template = m.group(1) + fts.doJob(Config.PATH + m.group(2)) + m.group(3);
+      }
+      template = template.replace("__LOOSE__INTERNAL__NEWLINE__", "\n");
+      computed = Boolean.FALSE;
+   }
 
    protected Template() {
       computed = Boolean.FALSE;
@@ -115,18 +133,8 @@ public class Template {
                      if (!lastTag.equals("list"))
                         throw new MalformedTemplateException("Unexpected /list, did you forget #{/" + lastTag + "}");
                      tags.remove(lastTagIndex);
-                     listTag.addBody(body.toString());
-                     try {
-                        SimpleTemplateEngine engine = new SimpleTemplateEngine();
-                        listTag.compute(tagArgs);
-                        sb.append(engine.createTemplate(listTag.toString()).make(tagArgs));
-                     } catch (ClassNotFoundException ex) {
-                        Logger.getLogger(Template.class.getName()).log(Level.SEVERE, null, ex);
-                        sb.append("__OTHER(").append(ts).append(")__");
-                     } catch (IOException ex) {
-                        Logger.getLogger(Template.class.getName()).log(Level.SEVERE, null, ex);
-                        sb.append("__OTHER(").append(ts).append(")__");
-                     }
+                     listTag.compute(body.toString());
+                     sb.append(listTag.toString());
                      body = null;
                      listTag = null;
                      tagArgs = new HashMap<String, Object>();
@@ -307,7 +315,12 @@ public class Template {
                      if ("list".equals(ts)) {
                         if (tagArgs.size() != 2 || !tagArgs.containsKey("_as") || !tagArgs.containsKey("_items"))
                            throw new MalformedTemplateException("You forgot either the \"as\" argument or the \"items\" one in a #{list} tag");
-                        listTag = new ListTag(tagArgs.get("_as").toString());
+                        try {
+                           listTag = new ListTag(tagArgs);
+                        } catch (IOException ex) {
+                           Logger.getLogger(Template.class.getName()).log(Level.SEVERE, null, ex);
+                           throw new MalformedTemplateException("File not found in #{include} in #{list}");
+                        }
                         body = new StringBuilder();
                      } else {
                         if ("form".equals(ts)) {
