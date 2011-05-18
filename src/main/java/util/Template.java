@@ -221,19 +221,17 @@ public class Template {
                                  tagArgs.put("_arg", argNs);
                               else {
                                  String obj = argNs.split("\\?")[0].split("\\.")[0];
-                                 if (args.containsKey(obj)) {
-                                    if (argNs.equals(obj))
-                                       tagArgs.put("_arg", args.get(obj));
-                                    else {
-                                       try {
-                                          tagArgs.put("_arg", new SimpleTemplateEngine().createTemplate("${" + argNs + "}").make(args));
-                                       } catch (Exception ex) {
-                                          Logger.getLogger(Template.class.getName()).log(Level.SEVERE, null, ex);
-                                          throw new MalformedTemplateException("Failed to evaluate: " + argNs + " in tag " + ts + " (maybe your forgot to quote it ?)");
-                                       }
+                                 Object value = null;
+                                 if (argNs.equals(obj))
+                                    value = args.get(obj);
+                                 else {
+                                    try {
+                                       value = new SimpleTemplateEngine().createTemplate("${" + argNs + "}").make(args);
+                                    } catch (Exception ex) {
+                                       Logger.getLogger(Template.class.getName()).log(Level.SEVERE, null, ex);
                                     }
-                                 } else
-                                    tagArgs.put("_arg", null);
+                                 }
+                                 tagArgs.put("_arg", value);
                               }
                            }
                            for (; i < template.length() && (c = template.charAt(i)) != '/' && c != '}' && c != ','; ++i) {
@@ -277,19 +275,17 @@ public class Template {
                            tagArgs.put("_" + argNs, argVs);
                         else {
                            String obj = argVs.split("\\?")[0].split("\\.")[0];
-                           if (args.containsKey(obj)) {
-                              if (argVs.equals(obj))
-                                 tagArgs.put("_" + argNs, args.get(obj));
-                              else {
-                                 try {
-                                    tagArgs.put("_" + argNs, new SimpleTemplateEngine().createTemplate("${" + argVs + "}").make(args));
-                                 } catch (Exception ex) {
-                                    Logger.getLogger(Template.class.getName()).log(Level.SEVERE, null, ex);
-                                    throw new MalformedTemplateException("Failed to evaluate " + argNs + " value: " + argVs + " in tag " + ts + " (maybe your forgot to quote it ?)");
-                                 }
+                           Object value = null;
+                           if (argVs.equals(obj))
+                              value = args.get(obj);
+                           else {
+                              try {
+                                 value = new SimpleTemplateEngine().createTemplate("${" + argVs + "}").make(args);
+                              } catch (Exception ex) {
+                                 Logger.getLogger(Template.class.getName()).log(Level.SEVERE, null, ex);
                               }
-                           } else
-                              tagArgs.put("_" + argNs, null);
+                           }
+                           tagArgs.put("_" + argNs, value);
                         }
                         if (c == ',') {
                            if (++i == template.length())
