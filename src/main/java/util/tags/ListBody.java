@@ -1,5 +1,6 @@
 package util.tags;
 
+import util.MalformedTemplateException;
 import util.Template;
 
 import java.io.IOException;
@@ -12,7 +13,7 @@ import java.io.IOException;
  * To change this template use File | Settings | File Templates.
  */
 public class ListBody extends Template {
-   public ListBody(String body) throws IOException{
+   public ListBody(String body) throws IOException, MalformedTemplateException {
       super(body);
    }
 }

@@ -22,7 +22,7 @@ public class Template {
    protected String template;
    private Boolean computed;
 
-   public Template(String fileName, String body) throws IOException {
+   public Template(String fileName, String body) throws IOException, MalformedTemplateException {
       FileToString fts = new FileToString();
       template = fts.doJob(fileName);
       if (body != null)
@@ -30,32 +30,42 @@ public class Template {
       Pattern p1 = Pattern.compile("(.*)#\\{include *'(.+)' */\\}(.*)");
       Pattern p2 = Pattern.compile("(.*)#\\{include *\"(.+)\" */\\}(.*)");
       Matcher m;
+      List<String> included = new ArrayList<String>();
       for (; ; ) {
          m = p1.matcher(template);
          if (!m.matches())
             m = p2.matcher(template);
          if (!m.matches())
             break;
-         template = m.group(1) + fts.doJob(Config.PATH + m.group(2)) + m.group(3);
+         String include = m.group(2);
+         if (included.contains(include))
+            throw new MalformedTemplateException("Recursive include detected: " + include);
+         template = m.group(1) + fts.doJob(Config.PATH + include) + m.group(3);
+         included.add(include);
       }
       template = template.replace("__LOOSE__INTERNAL__NEWLINE__", "\n");
       computed = Boolean.FALSE;
    }
 
 
-   protected Template(String tpl) throws IOException {
+   protected Template(String tpl) throws IOException, MalformedTemplateException {
       FileToString fts = new FileToString();
       template = tpl;
       Pattern p1 = Pattern.compile("(.*)#\\{include *'(.+)' */\\}(.*)");
       Pattern p2 = Pattern.compile("(.*)#\\{include *\"(.+)\" */\\}(.*)");
       Matcher m;
+      List<String> included = new ArrayList<String>();
       for (; ; ) {
          m = p1.matcher(template);
          if (!m.matches())
             m = p2.matcher(template);
          if (!m.matches())
             break;
-         template = m.group(1) + fts.doJob(Config.PATH + m.group(2)) + m.group(3);
+         String include = m.group(2);
+         if (included.contains(include))
+            throw new MalformedTemplateException("Recursive include detected: " + include);
+         template = m.group(1) + fts.doJob(Config.PATH + include) + m.group(3);
+         included.add(include);
       }
       template = template.replace("__LOOSE__INTERNAL__NEWLINE__", "\n");
       computed = Boolean.FALSE;
