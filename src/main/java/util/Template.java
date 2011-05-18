@@ -9,6 +9,8 @@ import java.io.IOException;
 import java.util.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * @author keruspe
@@ -21,17 +23,25 @@ public class Template {
    private Boolean computed;
 
    public Template(String fileName, String body) throws IOException {
-      StringBuilder sb = new StringBuilder();
-      FileReader fr = new FileReader(fileName);
-      BufferedReader br = new BufferedReader(fr);
-      String line;
-      while ((line = br.readLine()) != null) {
-         sb.append(line).append('\n');
+      FileToString fts = new FileToString();
+      template = fts.doJob(fileName);
+      if (body != null)
+         template = template.replaceAll("#\\{doBody */\\}", body.replaceAll("\\$", "\\\\\\$"));
+      Pattern p1 = Pattern.compile("(.*)#\\{include *'(.+)' */\\}(.*)");
+      Pattern p2 = Pattern.compile("(.*)#\\{include *\"(.+)\" */\\}(.*)");
+      Matcher m;
+      for (; ; ) {
+         m = p1.matcher(template);
+         if (!m.matches())
+            m = p2.matcher(template);
+         if (!m.matches())
+            break;
+         template = m.group(1) + fts.doJob(Config.PATH + m.group(2)) + m.group(3);
       }
-      fr.close();
-      template = (body == null) ? sb.toString() : sb.toString().replaceAll("#\\{doBody */\\}", body.replaceAll("\\$", "\\\\\\$"));
+      template = template.replace("__LOOSE__INTERNAL__NEWLINE__", "\n");
       computed = Boolean.FALSE;
    }
+
 
    protected Template() {
       computed = Boolean.FALSE;
@@ -174,7 +184,7 @@ public class Template {
                   } else {
                      // TODO: handle other play # tags
                      // set, get, doLayout, extends, field, verbatim, ...
-                     if ("list".equals(ts) || "form".equals(ts) || "script".equals(ts) || "a".equals(ts) || "stylesheet".equals(ts) || "include".equals(ts)) {
+                     if ("list".equals(ts) || "form".equals(ts) || "script".equals(ts) || "a".equals(ts) || "stylesheet".equals(ts)) {
                         tags.add(ts);
                         builtin = true;
                      } else
@@ -347,35 +357,18 @@ public class Template {
                            if (tagArgs.containsKey("_title"))
                               sb.append(" title=\"").append(tagArgs.get("_title")).append("\"");
                            sb.append(" />");
-                        } else if ("include".equals(ts)) { //TODO: relative or absolute ?
-                           Object tmp = tagArgs.get("_arg");
-                           if (tmp == null)
-                              throw new MalformedTemplateException("No template name given in #{include /}");
-                           try {
-                              Template included = new Template(Config.PATH + tmp.toString(), null);
-                              Map<String, Object> argsCopy = new HashMap<String, Object>(args);
-                              SimpleTemplateEngine engine = new SimpleTemplateEngine();
-                              included.compute(argsCopy);
-                              sb.append(engine.createTemplate(included.toString()).make(argsCopy));
-                           } catch (ClassNotFoundException ex) {
-                              Logger.getLogger(Template.class.getName()).log(Level.SEVERE, null, ex);
-                              sb.append("__OTHER(").append(ts).append(")__");
-                           } catch (IOException ex) {
-                              Logger.getLogger(Template.class.getName()).log(Level.SEVERE, null, ex);
-                              sb.append("__OTHER(").append(ts).append(")__");
-                           }
                         }
                         tagArgs = new HashMap<String, Object>();
                      }
                      if (c == '/') {
-                        if ("script".equals(ts) || "stylesheet".equals(ts) || "include".equals(ts)) {
+                        if ("script".equals(ts) || "stylesheet".equals(ts)) {
                            if (!tags.remove(tags.size() - 1).equals(ts))
                               throw new RuntimeException("Anything went wrong, we should never get there");
                            if ("script".equals(ts))
                               sb.append("</").append(ts).append(">");
                         } else
                            throw new MalformedTemplateException("#{" + ts + " /} is not allowed");
-                     } else if ("stylesheet".equals(ts) || "include".equals(ts)) {
+                     } else if ("stylesheet".equals(ts)) {
                         throw new MalformedTemplateException("Missing / in " + ts + " tag");
                      }
                   }
