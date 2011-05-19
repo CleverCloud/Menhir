@@ -164,10 +164,7 @@ public class Template {
                         SimpleTemplateEngine engine = new SimpleTemplateEngine();
                         tagImpl.compute(tagArgs);
                         sb.append(engine.createTemplate(tagImpl.toString()).make(tagArgs));
-                     } catch (ClassNotFoundException ex) {
-                        Logger.getLogger(Template.class.getName()).log(Level.SEVERE, null, ex);
-                        sb.append("__OTHER(").append(ts).append(")__");
-                     } catch (IOException ex) {
+                     } catch (Exception ex) {
                         Logger.getLogger(Template.class.getName()).log(Level.SEVERE, null, ex);
                         sb.append("__OTHER(").append(ts).append(")__");
                      }
@@ -413,10 +410,7 @@ public class Template {
                         SimpleTemplateEngine engine = new SimpleTemplateEngine();
                         tagImpl.compute(tagArgs);
                         sb.append(engine.createTemplate(tagImpl.toString()).make(tagArgs));
-                     } catch (ClassNotFoundException ex) {
-                        Logger.getLogger(Template.class.getName()).log(Level.SEVERE, null, ex);
-                        sb.append("__OTHER(").append(ts).append(")__");
-                     } catch (IOException ex) {
+                     } catch (Exception ex) {
                         Logger.getLogger(Template.class.getName()).log(Level.SEVERE, null, ex);
                         sb.append("__OTHER(").append(ts).append(")__");
                      }
@@ -509,9 +503,7 @@ public class Template {
             SimpleTemplateEngine engine = new SimpleTemplateEngine();
             b.compute(args);
             template = engine.createTemplate(b.toString()).make(args).toString();
-         } catch (ClassNotFoundException ex) { //TODO: throw
-            Logger.getLogger(Template.class.getName()).log(Level.SEVERE, null, ex);
-         } catch (IOException ex) {
+         } catch (Exception ex) { //TODO: throw
             Logger.getLogger(Template.class.getName()).log(Level.SEVERE, null, ex);
          }
       } else

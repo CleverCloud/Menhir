@@ -33,9 +33,7 @@ public class ListTag {
             SimpleTemplateEngine engine = new SimpleTemplateEngine();
             b.compute(args);
             tpl.append(engine.createTemplate(b.toString()).make(args));
-         } catch (ClassNotFoundException ex) { //TODO: throw
-            Logger.getLogger(Template.class.getName()).log(Level.SEVERE, null, ex);
-         } catch (IOException ex) {
+         } catch (Exception ex) { //TODO: throw
             Logger.getLogger(Template.class.getName()).log(Level.SEVERE, null, ex);
          }
       }

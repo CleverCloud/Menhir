@@ -49,7 +49,7 @@ public class Controller {
 
       SimpleTemplateEngine engine = new SimpleTemplateEngine();
       Writable templated = null;
-      Template template = null;
+      Template template;
       try {
          template = new Template(templateFile, null, null);
          template.compute(args);
@@ -57,11 +57,7 @@ public class Controller {
       } catch (MalformedTemplateException ex) {
          Logger.getLogger(Controller.class.getName()).log(Level.SEVERE, null, ex);
          return Response.serverError().entity(ex.toString()).build();
-      } catch (CompilationFailedException ex) {
-         Logger.getLogger(caller).log(Level.SEVERE, null, ex);
-      } catch (ClassNotFoundException ex) {
-         Logger.getLogger(caller).log(Level.SEVERE, null, ex);
-      } catch (IOException ex) {
+      } catch (Exception ex) {
          Logger.getLogger(caller).log(Level.SEVERE, null, ex);
       }
 
