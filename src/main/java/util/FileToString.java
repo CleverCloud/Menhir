@@ -18,7 +18,7 @@ public class FileToString {
       BufferedReader br = new BufferedReader(fr);
       String line;
       while ((line = br.readLine()) != null) {
-         sb.append(line).append("__LOOSE__INTERNAL__NEWLINE__");
+         sb.append(line).append("\n");
       }
       fr.close();
       return sb.toString();
