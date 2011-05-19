@@ -30,6 +30,7 @@ public class Template {
       Pattern p2 = Pattern.compile("(.*)#\\{include *\"(.+)\" */\\}(.*)");
       Matcher m;
       List<String> included = new ArrayList<String>();
+      template = template.replace("\n", "__LOOSE__INTERNAL__NEWLINE__");
       for (; ; ) {
          m = p1.matcher(template);
          if (!m.matches())
