@@ -1,11 +1,8 @@
 package util;
 
-import com.sun.java.swing.plaf.windows.WindowsBorders;
 import groovy.text.SimpleTemplateEngine;
 import util.tags.ListTag;
 
-import java.io.BufferedReader;
-import java.io.FileReader;
 import java.io.IOException;
 import java.util.*;
 import java.util.logging.Level;
@@ -19,10 +16,12 @@ import java.util.regex.Pattern;
 //TODO: forward parent context to complex tags ?
 public class Template {
 
-   protected String template;
+   private String template;
    private Boolean computed;
+   private String parent;
 
    public Template(String fileName, String body, String tagToReplace) throws IOException, MalformedTemplateException {
+      this();
       FileToString fts = new FileToString();
       template = fts.doJob(fileName);
       if (body != null)
@@ -44,11 +43,11 @@ public class Template {
          included.add(include);
       }
       template = template.replace("__LOOSE__INTERNAL__NEWLINE__", "\n");
-      computed = Boolean.FALSE;
    }
 
 
    protected Template(String tpl) throws IOException, MalformedTemplateException {
+      this();
       FileToString fts = new FileToString();
       template = tpl;
       Pattern p1 = Pattern.compile("(.*)#\\{include *'(.+)' */\\}(.*)");
@@ -70,11 +69,11 @@ public class Template {
          included.add(include);
       }
       template = template.replace("__LOOSE__INTERNAL__NEWLINE__", "\n");
-      computed = Boolean.FALSE;
    }
 
    protected Template() {
       computed = Boolean.FALSE;
+      parent = null;
    }
 
    public void compute(Map<String, Object> args) throws MalformedTemplateException {
@@ -204,7 +203,7 @@ public class Template {
                   } else {
                      // TODO: handle other play # tags
                      // set, get, doLayout, extends, field, verbatim, ...
-                     if ("list".equals(ts) || "form".equals(ts) || "script".equals(ts) || "a".equals(ts) || "stylesheet".equals(ts)) {
+                     if ("list".equals(ts) || "form".equals(ts) || "script".equals(ts) || "a".equals(ts) || "stylesheet".equals(ts) || "extends".equals(ts)) {
                         tags.add(ts);
                         builtin = true;
                      } else
@@ -378,18 +377,25 @@ public class Template {
                            if (tagArgs.containsKey("_title"))
                               sb.append(" title=\"").append(tagArgs.get("_title")).append("\"");
                            sb.append(" />");
+                        } else if ("extends".equals(ts)) {
+                           Object tmp = tagArgs.get("_arg");
+                           if (tmp == null)
+                              throw new MalformedTemplateException("No parent given to #{extends/}");
+                           if (hasParent())
+                              throw new MalformedTemplateException("Only one #{extends/} allowed per template");
+                           parent = tmp.toString();
                         }
                         tagArgs = new HashMap<String, Object>();
                      }
                      if (c == '/') {
-                        if ("script".equals(ts) || "stylesheet".equals(ts)) {
+                        if ("script".equals(ts) || "stylesheet".equals(ts) || "extends".equals(ts)) {
                            if (!tags.remove(tags.size() - 1).equals(ts))
                               throw new RuntimeException("Anything went wrong, we should never get there");
                            if ("script".equals(ts))
                               sb.append("</").append(ts).append(">");
                         } else
                            throw new MalformedTemplateException("#{" + ts + " /} is not allowed");
-                     } else if ("stylesheet".equals(ts)) {
+                     } else if ("stylesheet".equals(ts) || "extends".equals(ts)) {
                         throw new MalformedTemplateException("Missing / in " + ts + " tag");
                      }
                   }
@@ -497,7 +503,23 @@ public class Template {
       }
       if (!tags.isEmpty())
          throw new MalformedTemplateException("Unexpected EOF, maybe you forgot #{/" + tags.get(tags.size() - 1) + "} ?");
-      template = sb.toString();
+      if (hasParent()) {
+         try {
+            Template b = new Template(Config.PATH + parent, sb.toString(), "doLayout");
+            SimpleTemplateEngine engine = new SimpleTemplateEngine();
+            b.compute(args);
+            template = engine.createTemplate(b.toString()).make(args).toString();
+         } catch (ClassNotFoundException ex) { //TODO: throw
+            Logger.getLogger(Template.class.getName()).log(Level.SEVERE, null, ex);
+         } catch (IOException ex) {
+            Logger.getLogger(Template.class.getName()).log(Level.SEVERE, null, ex);
+         }
+      } else
+         template = sb.toString();
+   }
+
+   public boolean hasParent() {
+      return (parent != null);
    }
 
    @Override
