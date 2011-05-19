@@ -486,7 +486,12 @@ public class Template {
       }
       if (!tags.isEmpty())
          throw new MalformedTemplateException("Unexpected EOF, maybe you forgot #{/" + tags.get(tags.size() - 1) + "} ?");
-      template = hasParent() ? runTemplate(Config.PATH + parent, sb.toString(), "doLayout", args, Boolean.FALSE) : sb.toString(); //TODO: we should'nt be passing args here
+      if (hasParent()) {
+         Map<String, Object> parentArgs = new HashMap<String, Object>();
+         template = runTemplate(Config.PATH + parent, "__LOOSE__INTERNAL__DOLAYOUT__", "doLayout", parentArgs, Boolean.FALSE).replace("__LOOSE__INTERNAL__DOLAYOUT__", sb.toString());
+         args.putAll(parentArgs); // TODO: how do we handle conflict here ?
+      } else
+         template = sb.toString();
       if (isLastChild)
          template = template.replace("__LOOSE__INTERNAL__ESCAPE__", "");
    }
