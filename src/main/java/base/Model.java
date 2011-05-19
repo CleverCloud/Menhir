@@ -5,18 +5,19 @@ import com.google.code.morphia.Morphia;
 import com.google.code.morphia.annotations.Id;
 import com.google.code.morphia.annotations.Transient;
 import com.mongodb.Mongo;
+
 import java.lang.reflect.Field;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
 import org.bson.types.ObjectId;
 
 /**
- *
- * @author keruspe
+ * @author Marc-Antoine Perennou<Marc-Antoine@Perennou.com>
  */
 @SuppressWarnings("unchecked")
 public abstract class Model {
-   
+
    private static String host = "localhost";
    private static String db = "loose";
 
@@ -31,6 +32,7 @@ public abstract class Model {
 
    /**
     * Get the Datastore used to store the data
+    *
     * @return The Datastore
     */
    public static Datastore getDs() {
@@ -48,6 +50,7 @@ public abstract class Model {
 
    /**
     * Save the Entity
+    *
     * @return self
     */
    public <T extends Model> T save() {
@@ -63,6 +66,7 @@ public abstract class Model {
 
    /**
     * Refresh the Entity (fill missing field with values from BDD)
+    *
     * @return self, refreshed
     */
    public <T extends Model> T refresh() {

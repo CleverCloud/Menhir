@@ -10,11 +10,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
- * Created by IntelliJ IDEA.
- * User: keruspe
- * Date: 12/05/11
- * Time: 15:39
- * To change this template use File | Settings | File Templates.
+ * @author Marc-Antoine Perennou<Marc-Antoine@Perennou.com>
  */
 public class ListTag {
    private StringBuilder tpl;

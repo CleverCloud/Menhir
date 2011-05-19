@@ -3,17 +3,12 @@ package base;
 import groovy.lang.Writable;
 import groovy.text.SimpleTemplateEngine;
 
-import java.io.BufferedInputStream;
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.net.MalformedURLException;
 import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.ejb.LocalBean;
 import javax.ejb.Stateless;
-import javax.servlet.http.HttpServlet;
 import javax.ws.rs.core.Response;
 
 import org.codehaus.groovy.control.CompilationFailedException;
@@ -22,7 +17,7 @@ import util.MalformedTemplateException;
 import util.Template;
 
 /**
- * @author keruspe
+ * @author Marc-Antoine Perennou<Marc-Antoine@Perennou.com>
  */
 @Stateless
 @LocalBean

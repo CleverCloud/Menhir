@@ -4,11 +4,13 @@ import app.models.FooBar;
 import app.models.HelloWorldDest;
 import base.Controller;
 import com.google.gson.Gson;
+
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.core.Response;
+
 import org.bson.types.ObjectId;
 
 import java.util.ArrayList;
@@ -17,8 +19,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- *
- * @author keruspe
+ * @author Marc-Antoine Perennou<Marc-Antoine@Perennou.com>
  */
 @Path("/")
 public class FooBarController extends Controller {
@@ -38,7 +39,7 @@ public class FooBarController extends Controller {
       args.put("list", list);
       return render(args);
    }
-   
+
    @POST
    public Response newFooBar(String fooBarJSON) {
       FooBar fooBar = new Gson().fromJson(fooBarJSON, FooBar.class);
@@ -47,5 +48,5 @@ public class FooBarController extends Controller {
       fooBar.save();
       return Response.ok("id: " + fooBar.getId().toStringMongod()).build();
    }
-   
+
 }

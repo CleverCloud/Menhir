@@ -5,11 +5,7 @@ import java.io.FileReader;
 import java.io.IOException;
 
 /**
- * Created by IntelliJ IDEA.
- * User: keruspe
- * Date: 18/05/11
- * Time: 11:29
- * To change this template use File | Settings | File Templates.
+ * @author Marc-Antoine Perennou<Marc-Antoine@Perennou.com>
  */
 public class FileToString {
    public String doJob(String path) throws IOException {

@@ -11,7 +11,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * @author keruspe
+ * @author Marc-Antoine Perennou<Marc-Antoine@Perennou.com>
  */
 //TODO: forward parent context to complex tags ?
 public class Template {
