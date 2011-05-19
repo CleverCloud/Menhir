@@ -22,11 +22,11 @@ public class Template {
    protected String template;
    private Boolean computed;
 
-   public Template(String fileName, String body) throws IOException, MalformedTemplateException {
+   public Template(String fileName, String body, String tagToReplace) throws IOException, MalformedTemplateException {
       FileToString fts = new FileToString();
       template = fts.doJob(fileName);
       if (body != null)
-         template = template.replaceAll("#\\{doBody */\\}", body.replaceAll("\\$", "\\\\\\$"));
+         template = template.replaceAll("#\\{" + tagToReplace + " */\\}", body.replaceAll("\\$", "\\\\\\$"));
       Pattern p1 = Pattern.compile("(.*)#\\{include *'(.+)' */\\}(.*)");
       Pattern p2 = Pattern.compile("(.*)#\\{include *\"(.+)\" */\\}(.*)");
       Matcher m;
@@ -161,7 +161,7 @@ public class Template {
                      tags.remove(lastTagIndex);
                      try {
                         ts = ts.substring(1);
-                        Template tagImpl = new Template(Config.PATH + "tags/" + ts + ".tag", body.toString());
+                        Template tagImpl = new Template(Config.PATH + "tags/" + ts + ".tag", body.toString(), "doBody");
                         SimpleTemplateEngine engine = new SimpleTemplateEngine();
                         tagImpl.compute(tagArgs);
                         sb.append(engine.createTemplate(tagImpl.toString()).make(tagArgs));
@@ -403,7 +403,7 @@ public class Template {
                   }
                   if (simpleTag) {
                      try {
-                        Template tagImpl = new Template(Config.PATH + "tags/" + ts + ".tag", null);
+                        Template tagImpl = new Template(Config.PATH + "tags/" + ts + ".tag", null, null);
                         SimpleTemplateEngine engine = new SimpleTemplateEngine();
                         tagImpl.compute(tagArgs);
                         sb.append(engine.createTemplate(tagImpl.toString()).make(tagArgs));
