@@ -19,9 +19,10 @@ public class Template {
    private String template;
    private Boolean computed;
    private String parent;
+   private Boolean isLastChild;
 
-   public Template(String fileName, String body, String tagToReplace) throws IOException, MalformedTemplateException {
-      this();
+   public Template(String fileName, String body, String tagToReplace, Boolean isLastChild) throws IOException, MalformedTemplateException {
+      this(isLastChild);
       FileToString fts = new FileToString();
       template = fts.doJob(fileName);
       if (body != null)
@@ -43,12 +44,15 @@ public class Template {
          template = m.group(1) + fts.doJob(Config.PATH + include) + m.group(3);
          included.add(include);
       }
-      template = template.replace("__LOOSE__INTERNAL__NEWLINE__", "\n");
+      template = template.replace("__LOOSE__INTERNAL__NEWLINE__", "\n").replace("__LOOSE__INTERNAL__ESCAPE__", "\\");
    }
 
+   public Template(String fileName, String body, String tagToReplace) throws IOException, MalformedTemplateException {
+      this(fileName, body, tagToReplace, Boolean.TRUE);
+   }
 
-   protected Template(String tpl) throws IOException, MalformedTemplateException {
-      this();
+   protected Template(String tpl, Boolean isLastChild) throws IOException, MalformedTemplateException {
+      this(isLastChild);
       FileToString fts = new FileToString();
       template = tpl;
       Pattern p1 = Pattern.compile("(.*)#\\{include *'(.+)' */\\}(.*)");
@@ -69,12 +73,17 @@ public class Template {
          template = m.group(1) + fts.doJob(Config.PATH + include) + m.group(3);
          included.add(include);
       }
-      template = template.replace("__LOOSE__INTERNAL__NEWLINE__", "\n");
+      template = template.replace("__LOOSE__INTERNAL__NEWLINE__", "\n").replace("__LOOSE__INTERNAL__ESCAPE__", "\\");
    }
 
-   protected Template() {
+   protected Template(String tpl) throws IOException, MalformedTemplateException {
+      this(tpl, Boolean.TRUE);
+   }
+
+   protected Template(Boolean isLastChild) {
       computed = Boolean.FALSE;
       parent = null;
+      this.isLastChild = isLastChild;
    }
 
    public void compute(Map<String, Object> args) throws MalformedTemplateException {
@@ -469,7 +478,7 @@ public class Template {
             case '\\':
                if (++i == template.length())
                   throw new MalformedTemplateException("Unexpected EOF escaping");
-               sb.append(template.charAt(i));
+               sb.append("__LOOSE__INTERNAL__ESCAPE__").append(template.charAt(i));
                break;
             default:
                sb.append(c);
@@ -477,23 +486,32 @@ public class Template {
       }
       if (!tags.isEmpty())
          throw new MalformedTemplateException("Unexpected EOF, maybe you forgot #{/" + tags.get(tags.size() - 1) + "} ?");
-      template = hasParent() ? runTemplate(Config.PATH + parent, sb.toString(), "doLayout", new HashMap<String, Object>()) : sb.toString();
+      template = hasParent() ? runTemplate(Config.PATH + parent, sb.toString(), "doLayout", args, Boolean.FALSE) : sb.toString(); //TODO: we should'nt be passing args here
+      if (isLastChild)
+         template = template.replace("__LOOSE__INTERNAL__ESCAPE__", "");
    }
 
    public boolean hasParent() {
       return (parent != null);
    }
 
-   public String runTemplate(String fileName, String body, String tagToReplace, Map<String, Object> args) throws MalformedTemplateException {
+   public String runTemplate(String fileName, String body, String tagToReplace, Map<String, Object> args, Boolean isLastChild) throws MalformedTemplateException {
       try {
-         Template tpl = new Template(fileName, body, tagToReplace);
+         Template tpl = new Template(fileName, body, tagToReplace, isLastChild);
          SimpleTemplateEngine engine = new SimpleTemplateEngine();
          tpl.compute(args);
          return engine.createTemplate(tpl.toString()).make(args).toString();
-      } catch (Exception ex) {
+      } catch (IOException ex) {
          Logger.getLogger(Template.class.getName()).log(Level.SEVERE, null, ex);
          throw new MalformedTemplateException("Error: " + fileName + " not found.");
+      } catch (Exception ex) {
+         Logger.getLogger(Template.class.getName()).log(Level.SEVERE, null, ex);
+         throw new MalformedTemplateException("Unknown error: " + ex.getMessage());
       }
+   }
+
+   public String runTemplate(String fileName, String body, String tagToReplace, Map<String, Object> args) throws MalformedTemplateException {
+      return runTemplate(fileName, body, tagToReplace, args, Boolean.TRUE);
    }
 
    @Override
