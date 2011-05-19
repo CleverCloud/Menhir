@@ -158,16 +158,8 @@ public class Template {
                      if (!lastTag.equals(ts.substring(1)))
                         throw new MalformedTemplateException("Unexpected /" + ts + ", did you forget #{/" + lastTag + "}");
                      tags.remove(lastTagIndex);
-                     try {
-                        ts = ts.substring(1);
-                        Template tagImpl = new Template(Config.PATH + "tags/" + ts + ".tag", body.toString(), "doBody");
-                        SimpleTemplateEngine engine = new SimpleTemplateEngine();
-                        tagImpl.compute(tagArgs);
-                        sb.append(engine.createTemplate(tagImpl.toString()).make(tagArgs));
-                     } catch (Exception ex) {
-                        Logger.getLogger(Template.class.getName()).log(Level.SEVERE, null, ex);
-                        sb.append("__OTHER(").append(ts).append(")__");
-                     }
+                     ts = ts.substring(1);
+                     sb.append(runTemplate(Config.PATH + "tags/" + ts + ".tag", body.toString(), "doBody", tagArgs));
                      tagArgs = new HashMap<String, Object>();
                      body = null;
                   } else if ("if".equals(ts)) {
@@ -323,12 +315,7 @@ public class Template {
                      if ("list".equals(ts)) {
                         if (tagArgs.size() != 2 || !tagArgs.containsKey("_as") || !tagArgs.containsKey("_items"))
                            throw new MalformedTemplateException("You forgot either the \"as\" argument or the \"items\" one in a #{list} tag");
-                        try {
-                           listTag = new ListTag(tagArgs);
-                        } catch (IOException ex) {
-                           Logger.getLogger(Template.class.getName()).log(Level.SEVERE, null, ex);
-                           throw new MalformedTemplateException("File not found in #{include} in #{list}");
-                        }
+                        listTag = new ListTag(tagArgs);
                         body = new StringBuilder();
                      } else {
                         if ("form".equals(ts)) {
@@ -405,15 +392,7 @@ public class Template {
                         throw new MalformedTemplateException("You forgot to close your tag " + ts + " (missing })");
                   }
                   if (simpleTag) {
-                     try {
-                        Template tagImpl = new Template(Config.PATH + "tags/" + ts + ".tag", null, null);
-                        SimpleTemplateEngine engine = new SimpleTemplateEngine();
-                        tagImpl.compute(tagArgs);
-                        sb.append(engine.createTemplate(tagImpl.toString()).make(tagArgs));
-                     } catch (Exception ex) {
-                        Logger.getLogger(Template.class.getName()).log(Level.SEVERE, null, ex);
-                        sb.append("__OTHER(").append(ts).append(")__");
-                     }
+                     sb.append(runTemplate(Config.PATH + "tags/" + ts + ".tag", null, null, tagArgs));
                      tagArgs = new HashMap<String, Object>();
                   }
                } else if (body == null)
@@ -497,21 +476,23 @@ public class Template {
       }
       if (!tags.isEmpty())
          throw new MalformedTemplateException("Unexpected EOF, maybe you forgot #{/" + tags.get(tags.size() - 1) + "} ?");
-      if (hasParent()) {
-         try {
-            Template b = new Template(Config.PATH + parent, sb.toString(), "doLayout");
-            SimpleTemplateEngine engine = new SimpleTemplateEngine();
-            b.compute(args);
-            template = engine.createTemplate(b.toString()).make(args).toString();
-         } catch (Exception ex) { //TODO: throw
-            Logger.getLogger(Template.class.getName()).log(Level.SEVERE, null, ex);
-         }
-      } else
-         template = sb.toString();
+      template = hasParent() ? runTemplate(Config.PATH + parent, sb.toString(), "doLayout", new HashMap<String, Object>()) : sb.toString();
    }
 
    public boolean hasParent() {
       return (parent != null);
+   }
+
+   public String runTemplate(String fileName, String body, String tagToReplace, Map<String, Object> args) throws MalformedTemplateException {
+      try {
+         Template tpl = new Template(fileName, body, tagToReplace);
+         SimpleTemplateEngine engine = new SimpleTemplateEngine();
+         tpl.compute(args);
+         return engine.createTemplate(tpl.toString()).make(args).toString();
+      } catch (Exception ex) {
+         Logger.getLogger(Template.class.getName()).log(Level.SEVERE, null, ex);
+         throw new MalformedTemplateException("Error: " + fileName + " not found.");
+      }
    }
 
    @Override

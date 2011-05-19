@@ -4,7 +4,6 @@ import groovy.text.SimpleTemplateEngine;
 import util.MalformedTemplateException;
 import util.Template;
 
-import java.io.IOException;
 import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -18,7 +17,7 @@ public class ListTag {
    private Iterable items;
    private Map<String, Object> args;
 
-   public ListTag(Map<String, Object> args) throws IOException {
+   public ListTag(Map<String, Object> args) {
       as = args.get("_as").toString();
       items = (Iterable) args.get("_items");
       this.args = args;
