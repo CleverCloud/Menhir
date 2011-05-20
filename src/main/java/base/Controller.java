@@ -51,7 +51,7 @@ public class Controller {
       Writable templated = null;
       Template template;
       try {
-         template = new Template(templateFile, null, null);
+         template = new Template(templateFile, null, null, null);
          template.compute(args);
          templated = engine.createTemplate(template.toString()).make(args);
       } catch (MalformedTemplateException ex) {

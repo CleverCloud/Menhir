@@ -20,9 +20,10 @@ public class Template {
    private Boolean computed;
    private String parent;
    private Boolean isLastChild;
+   private Map<String, Object> extraArgs;
 
-   public Template(String fileName, String body, String tagToReplace, Boolean isLastChild) throws IOException, MalformedTemplateException {
-      this(isLastChild);
+   public Template(String fileName, String body, String tagToReplace, Boolean isLastChild, Map<String, Object> extraArgs) throws IOException, MalformedTemplateException {
+      this(isLastChild, extraArgs);
       FileToString fts = new FileToString();
       template = fts.doJob(fileName);
       if (body != null)
@@ -47,12 +48,12 @@ public class Template {
       template = template.replace("__LOOSE__INTERNAL__NEWLINE__", "\n").replace("__LOOSE__INTERNAL__ESCAPE__", "\\");
    }
 
-   public Template(String fileName, String body, String tagToReplace) throws IOException, MalformedTemplateException {
-      this(fileName, body, tagToReplace, Boolean.TRUE);
+   public Template(String fileName, String body, String tagToReplace, Map<String, Object> extraArgs) throws IOException, MalformedTemplateException {
+      this(fileName, body, tagToReplace, Boolean.TRUE, extraArgs);
    }
 
-   protected Template(String tpl, Boolean isLastChild) throws IOException, MalformedTemplateException {
-      this(isLastChild);
+   protected Template(String tpl, Boolean isLastChild, Map<String, Object> extraArgs) throws IOException, MalformedTemplateException {
+      this(isLastChild, extraArgs);
       FileToString fts = new FileToString();
       template = tpl;
       Pattern p1 = Pattern.compile("(.*)#\\{include *'(.+)' */\\}(.*)");
@@ -76,14 +77,15 @@ public class Template {
       template = template.replace("__LOOSE__INTERNAL__NEWLINE__", "\n").replace("__LOOSE__INTERNAL__ESCAPE__", "\\");
    }
 
-   protected Template(String tpl) throws IOException, MalformedTemplateException {
-      this(tpl, Boolean.TRUE);
+   protected Template(String tpl, Map<String, Object> extraArgs) throws IOException, MalformedTemplateException {
+      this(tpl, Boolean.TRUE, extraArgs);
    }
 
-   protected Template(Boolean isLastChild) {
+   protected Template(Boolean isLastChild, Map<String, Object> extraArgs) {
       computed = Boolean.FALSE;
       parent = null;
       this.isLastChild = isLastChild;
+      this.extraArgs = (extraArgs == null) ? new HashMap<String, Object>() : extraArgs;
    }
 
    public void compute(Map<String, Object> args) throws MalformedTemplateException {
@@ -154,22 +156,35 @@ public class Template {
                      if (!lastTag.equals("list"))
                         throw new MalformedTemplateException("Unexpected /list, did you forget #{/" + lastTag + "}");
                      tags.remove(lastTagIndex);
-                     listTag.compute(body.toString());
+                     listTag.compute(body.toString(), extraArgs);
                      sb.append(listTag.toString());
                      body = null;
                      listTag = null;
                      tagArgs = new HashMap<String, Object>();
-                  } else if ("/form".equals(ts) || "/script".equals(ts) || "/a".equals(ts)) {
+                  } else if ("/form".equals(ts) || "/script".equals(ts) || "/a".equals(ts) || "/set".equals(ts)) {
                      if (!lastTag.equals(ts.substring(1)))
                         throw new MalformedTemplateException("Unexpected " + ts + ", did you forget #{/" + lastTag + "}");
                      tags.remove(lastTagIndex);
-                     sb.append("<" + ts + ">");
+                     if ("/set".equals(ts)) {
+                        Object tmp = tagArgs.get("_arg");
+                        if (tmp == null)
+                           throw new MalformedTemplateException("No name given for #{set}#{/set} value.");
+                        try {
+                           Template value = new Template(body.toString(), extraArgs);
+                           value.compute(args);
+                           extraArgs.put(tmp.toString(), value.toString());
+                        } catch (Exception ex) {
+                           Logger.getLogger(Template.class.getName()).log(Level.SEVERE, null, ex);
+                           throw new MalformedTemplateException("Failed to evaluate #{set} " + tmp + " value");
+                        }
+                     } else
+                        sb.append("<" + ts + ">");
                   } else if (ts.startsWith("/")) {
                      if (!lastTag.equals(ts.substring(1)))
                         throw new MalformedTemplateException("Unexpected /" + ts + ", did you forget #{/" + lastTag + "}");
                      tags.remove(lastTagIndex);
                      ts = ts.substring(1);
-                     sb.append(runTemplate(Config.PATH + "tags/" + ts + ".tag", body.toString(), "doBody", tagArgs));
+                     sb.append(runTemplate(Config.PATH + "tags/" + ts + ".tag", body.toString(), "doBody", tagArgs, extraArgs));
                      tagArgs = new HashMap<String, Object>();
                      body = null;
                   } else if ("if".equals(ts)) {
@@ -201,8 +216,8 @@ public class Template {
                      sb.append("<% } else { %>");
                   } else {
                      // TODO: handle other play # tags
-                     // set, get, doLayout, extends, field, verbatim, ...
-                     if ("list".equals(ts) || "form".equals(ts) || "script".equals(ts) || "a".equals(ts) || "stylesheet".equals(ts) || "extends".equals(ts)) {
+                     // field, verbatim, ...
+                     if ("list".equals(ts) || "form".equals(ts) || "script".equals(ts) || "a".equals(ts) || "stylesheet".equals(ts) || "extends".equals(ts) || "set".equals(ts)) {
                         tags.add(ts);
                         builtin = true;
                      } else
@@ -378,15 +393,22 @@ public class Template {
                            if (hasParent())
                               throw new MalformedTemplateException("Only one #{extends/} allowed per template");
                            parent = tmp.toString();
+                        } else if ("set".equals(ts)) {
+                           body = new StringBuilder();
+                           extraArgs.putAll(tagArgs);
+                           if (extraArgs.containsKey("_arg"))
+                              extraArgs.remove("_arg");
                         }
                         tagArgs = new HashMap<String, Object>();
                      }
                      if (c == '/') {
-                        if ("script".equals(ts) || "stylesheet".equals(ts) || "extends".equals(ts)) {
+                        if ("script".equals(ts) || "stylesheet".equals(ts) || "extends".equals(ts) || "set".equals(ts)) {
                            if (!tags.remove(tags.size() - 1).equals(ts))
                               throw new RuntimeException("Anything went wrong, we should never get there");
                            if ("script".equals(ts))
                               sb.append("</").append(ts).append(">");
+                           else if ("set".equals(ts))
+                              body = null;
                         } else
                            throw new MalformedTemplateException("#{" + ts + " /} is not allowed");
                      } else if ("stylesheet".equals(ts) || "extends".equals(ts)) {
@@ -402,7 +424,7 @@ public class Template {
                         throw new MalformedTemplateException("You forgot to close your tag " + ts + " (missing })");
                   }
                   if (simpleTag) {
-                     sb.append(runTemplate(Config.PATH + "tags/" + ts + ".tag", null, null, tagArgs));
+                     sb.append(runTemplate(Config.PATH + "tags/" + ts + ".tag", null, null, tagArgs, extraArgs));
                      tagArgs = new HashMap<String, Object>();
                   }
                } else if (body == null)
@@ -488,7 +510,7 @@ public class Template {
          throw new MalformedTemplateException("Unexpected EOF, maybe you forgot #{/" + tags.get(tags.size() - 1) + "} ?");
       if (hasParent()) {
          Map<String, Object> parentArgs = new HashMap<String, Object>();
-         template = runTemplate(Config.PATH + parent, "__LOOSE__INTERNAL__DOLAYOUT__", "doLayout", parentArgs, Boolean.FALSE).replace("__LOOSE__INTERNAL__DOLAYOUT__", sb.toString());
+         template = runTemplate(Config.PATH + parent, "__LOOSE__INTERNAL__DOLAYOUT__", "doLayout", parentArgs, Boolean.FALSE, extraArgs).replace("__LOOSE__INTERNAL__DOLAYOUT__", sb.toString());
          args.putAll(parentArgs); // TODO: how do we handle conflict here ?
       } else
          template = sb.toString();
@@ -500,9 +522,9 @@ public class Template {
       return (parent != null);
    }
 
-   public String runTemplate(String fileName, String body, String tagToReplace, Map<String, Object> args, Boolean isLastChild) throws MalformedTemplateException {
+   public String runTemplate(String fileName, String body, String tagToReplace, Map<String, Object> args, Boolean isLastChild, Map<String, Object> extraArgs) throws MalformedTemplateException {
       try {
-         Template tpl = new Template(fileName, body, tagToReplace, isLastChild);
+         Template tpl = new Template(fileName, body, tagToReplace, isLastChild, extraArgs);
          SimpleTemplateEngine engine = new SimpleTemplateEngine();
          tpl.compute(args);
          return engine.createTemplate(tpl.toString()).make(args).toString();
@@ -515,8 +537,8 @@ public class Template {
       }
    }
 
-   public String runTemplate(String fileName, String body, String tagToReplace, Map<String, Object> args) throws MalformedTemplateException {
-      return runTemplate(fileName, body, tagToReplace, args, Boolean.TRUE);
+   public String runTemplate(String fileName, String body, String tagToReplace, Map<String, Object> args, Map<String, Object> extraArgs) throws MalformedTemplateException {
+      return runTemplate(fileName, body, tagToReplace, args, Boolean.TRUE, extraArgs);
    }
 
    @Override

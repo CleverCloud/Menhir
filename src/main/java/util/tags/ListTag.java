@@ -24,16 +24,17 @@ public class ListTag {
       tpl = new StringBuilder();
    }
 
-   public void compute(String body) throws MalformedTemplateException {
+   public void compute(String body, Map<String, Object> extraArgs) throws MalformedTemplateException {
       for (Object o : items) {
          try {
             args.put(as, o);
-            Template b = new ListBody(body);
+            Template b = new ListBody(body, extraArgs);
             SimpleTemplateEngine engine = new SimpleTemplateEngine();
             b.compute(args);
             tpl.append(engine.createTemplate(b.toString()).make(args));
-         } catch (Exception ex) { //TODO: throw
+         } catch (Exception ex) {
             Logger.getLogger(Template.class.getName()).log(Level.SEVERE, null, ex);
+            throw new MalformedTemplateException("Failed to execute #{list}");
          }
       }
    }
