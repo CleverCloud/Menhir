@@ -217,7 +217,7 @@ public class Template {
                   } else {
                      // TODO: handle other play # tags
                      // field, verbatim, ...
-                     if ("list".equals(ts) || "form".equals(ts) || "script".equals(ts) || "a".equals(ts) || "stylesheet".equals(ts) || "extends".equals(ts) || "set".equals(ts)) {
+                     if ("list".equals(ts) || "form".equals(ts) || "script".equals(ts) || "a".equals(ts) || "stylesheet".equals(ts) || "extends".equals(ts) || "set".equals(ts) || "get".equals(ts)) {
                         tags.add(ts);
                         builtin = true;
                      } else
@@ -398,11 +398,19 @@ public class Template {
                            extraArgs.putAll(tagArgs);
                            if (extraArgs.containsKey("_arg"))
                               extraArgs.remove("_arg");
+                        } else if ("get".equals(ts)) {
+                           Object tmp = tagArgs.get("_arg");
+                           if (tmp == null)
+                              throw new MalformedTemplateException("You didn't specify a name in #{get /}");
+                           String key = tmp.toString();
+                           if (!extraArgs.containsKey(key))
+                              throw new MalformedTemplateException("Could not found " + key + " for #{get /}. Did you forget to #{set} it ?");
+                           sb.append(extraArgs.get(key));
                         }
                         tagArgs = new HashMap<String, Object>();
                      }
                      if (c == '/') {
-                        if ("script".equals(ts) || "stylesheet".equals(ts) || "extends".equals(ts) || "set".equals(ts)) {
+                        if ("script".equals(ts) || "stylesheet".equals(ts) || "extends".equals(ts) || "set".equals(ts) || "get".equals(ts)) {
                            if (!tags.remove(tags.size() - 1).equals(ts))
                               throw new RuntimeException("Anything went wrong, we should never get there");
                            if ("script".equals(ts))
@@ -411,7 +419,7 @@ public class Template {
                               body = null;
                         } else
                            throw new MalformedTemplateException("#{" + ts + " /} is not allowed");
-                     } else if ("stylesheet".equals(ts) || "extends".equals(ts)) {
+                     } else if ("stylesheet".equals(ts) || "extends".equals(ts) || "get".equals(ts)) {
                         throw new MalformedTemplateException("Missing / in " + ts + " tag");
                      }
                   }
