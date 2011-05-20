@@ -161,24 +161,27 @@ public class Template {
                      body = null;
                      listTag = null;
                      tagArgs = new HashMap<String, Object>();
-                  } else if ("/form".equals(ts) || "/script".equals(ts) || "/a".equals(ts) || "/set".equals(ts)) {
+                  } else if ("/set".equals(ts)) {
+                     if (!lastTag.equals("set"))
+                        throw new MalformedTemplateException("Unexpected /set, did you forget #{/" + lastTag + "}");
+                     tags.remove(lastTagIndex);
+                     Object tmp = tagArgs.get("_arg");
+                     if (tmp == null)
+                        throw new MalformedTemplateException("No name given for #{set}#{/set} value.");
+                     try {
+                        Template value = new Template(body.toString(), extraArgs);
+                        value.compute(args);
+                        extraArgs.put(tmp.toString(), value.toString());
+                     } catch (Exception ex) {
+                        Logger.getLogger(Template.class.getName()).log(Level.SEVERE, null, ex);
+                        throw new MalformedTemplateException("Failed to evaluate #{set} " + tmp + " value");
+                     }
+                     body = null;
+                  } else if ("/form".equals(ts) || "/script".equals(ts) || "/a".equals(ts)) {
                      if (!lastTag.equals(ts.substring(1)))
                         throw new MalformedTemplateException("Unexpected " + ts + ", did you forget #{/" + lastTag + "}");
                      tags.remove(lastTagIndex);
-                     if ("/set".equals(ts)) {
-                        Object tmp = tagArgs.get("_arg");
-                        if (tmp == null)
-                           throw new MalformedTemplateException("No name given for #{set}#{/set} value.");
-                        try {
-                           Template value = new Template(body.toString(), extraArgs);
-                           value.compute(args);
-                           extraArgs.put(tmp.toString(), value.toString());
-                        } catch (Exception ex) {
-                           Logger.getLogger(Template.class.getName()).log(Level.SEVERE, null, ex);
-                           throw new MalformedTemplateException("Failed to evaluate #{set} " + tmp + " value");
-                        }
-                     } else
-                        sb.append("<" + ts + ">");
+                     sb.append("<" + ts + ">");
                   } else if (ts.startsWith("/")) {
                      if (!lastTag.equals(ts.substring(1)))
                         throw new MalformedTemplateException("Unexpected /" + ts + ", did you forget #{/" + lastTag + "}");
@@ -342,6 +345,12 @@ public class Template {
                            throw new MalformedTemplateException("You forgot either the \"as\" argument or the \"items\" one in a #{list} tag");
                         listTag = new ListTag(tagArgs);
                         body = new StringBuilder();
+                     } else if ("set".equals(ts)) {
+                        body = new StringBuilder();
+                        for (String key : tagArgs.keySet()) {
+                           if (!"_arg".equals(key))
+                              extraArgs.put(key.substring(1), tagArgs.get(key));
+                        }
                      } else {
                         if ("form".equals(ts)) {
                            String action;
@@ -393,11 +402,6 @@ public class Template {
                            if (hasParent())
                               throw new MalformedTemplateException("Only one #{extends/} allowed per template");
                            parent = tmp.toString();
-                        } else if ("set".equals(ts)) {
-                           body = new StringBuilder();
-                           extraArgs.putAll(tagArgs);
-                           if (extraArgs.containsKey("_arg"))
-                              extraArgs.remove("_arg");
                         } else if ("get".equals(ts)) {
                            Object tmp = tagArgs.get("_arg");
                            if (tmp == null)
@@ -536,6 +540,8 @@ public class Template {
          SimpleTemplateEngine engine = new SimpleTemplateEngine();
          tpl.compute(args);
          return engine.createTemplate(tpl.toString()).make(args).toString();
+      } catch (MalformedTemplateException ex) {
+         throw ex;
       } catch (IOException ex) {
          Logger.getLogger(Template.class.getName()).log(Level.SEVERE, null, ex);
          throw new MalformedTemplateException("Error: " + fileName + " not found.");

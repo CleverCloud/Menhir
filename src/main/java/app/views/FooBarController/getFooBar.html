@@ -1,9 +1,13 @@
+#{set title:'It works lol !'/}
 #{extends 'main.html'/}
 This is FooBar with foo ${foobar.foo} and bar ${foobar.bar}
 #{if foobar.foo.equals("Yay")}
 blabla
 #{stylesheet '/css/foobar.css',media:'screen' /}
 <br/>
+#{set 'Yay'}
+${foobar.foo} !
+#{/set}
 #{foozor foo:foobar, bar:'Baz'}
 foozorBody
 #{anonymous _foo.bar/}
