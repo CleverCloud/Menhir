@@ -342,8 +342,14 @@ public class Template {
                      simpleTag = (c == '/');
                   } else if (builtin) {
                      if ("list".equals(ts)) {
-                        if (tagArgs.size() != 2 || !tagArgs.containsKey("_as") || !tagArgs.containsKey("_items"))
-                           throw new MalformedTemplateException("You forgot either the \"as\" argument or the \"items\" one in a #{list} tag");
+                        if (!tagArgs.containsKey("_as"))
+                           tagArgs.put("_as", "_");
+                        if (!tagArgs.containsKey("_items")) {
+                           Object items = tagArgs.get("_arg");
+                           if (items == null)
+                              throw new MalformedTemplateException("You forgot the \"items\" argument in a #{list} tag");
+                           tagArgs.put("_items", items);
+                        }
                         listTag = new ListTag(tagArgs);
                         body = new StringBuilder();
                      } else if ("set".equals(ts)) {

@@ -4,6 +4,7 @@ import groovy.text.SimpleTemplateEngine;
 import util.MalformedTemplateException;
 import util.Template;
 
+import java.util.Iterator;
 import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -25,9 +26,21 @@ public class ListTag {
    }
 
    public void compute(String body, Map<String, Object> extraArgs) throws MalformedTemplateException {
-      for (Object o : items) {
+      Integer index = 0;
+      boolean first = true;
+      Iterator it = items.iterator();
+      boolean notLast = it.hasNext();
+      while (notLast) {
+         Object o = it.next();
+         notLast = it.hasNext();
+         args.put(as, o);
+         args.put(as + "_index", ++index);
+         args.put(as + "_parity", (index % 2 == 0) ? "even" : "odd");
+         args.put(as + "_isLast", !notLast);
+         args.put(as + "_isFirst", first);
+         if (first)
+            first = false;
          try {
-            args.put(as, o);
             Template b = new ListBody(body, extraArgs);
             SimpleTemplateEngine engine = new SimpleTemplateEngine();
             b.compute(args);
