@@ -170,8 +170,9 @@ public class Template {
                         throw new MalformedTemplateException("No name given for #{set}#{/set} value.");
                      try {
                         Template value = new Template(body.toString(), extraArgs);
+                        SimpleTemplateEngine engine = new SimpleTemplateEngine();
                         value.compute(args);
-                        extraArgs.put(tmp.toString(), value.toString());
+                        extraArgs.put(tmp.toString(), engine.createTemplate(value.toString()).make(args));
                      } catch (Exception ex) {
                         Logger.getLogger(Template.class.getName()).log(Level.SEVERE, null, ex);
                         throw new MalformedTemplateException("Failed to evaluate #{set} " + tmp + " value");
