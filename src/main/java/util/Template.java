@@ -13,7 +13,6 @@ import java.util.regex.Pattern;
 /**
  * @author Marc-Antoine Perennou<Marc-Antoine@Perennou.com>
  */
-//TODO: forward parent context to complex tags ?
 public class Template {
 
    private String template;
