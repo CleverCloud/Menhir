@@ -92,7 +92,7 @@ public class Template {
          return;
       List<String> tags = new ArrayList<String>();
       computed = Boolean.TRUE;
-      StringBuilder sb = new StringBuilder();
+      StringBuilder sb = new StringBuilder("<% use(util.extensions.JavaExtensions) { %>");
       Map<String, Object> tagArgs = new HashMap<String, Object>();
       ListTag listTag = null;
       StringBuilder body = null;
@@ -525,6 +525,7 @@ public class Template {
       }
       if (!tags.isEmpty())
          throw new MalformedTemplateException("Unexpected EOF, maybe you forgot #{/" + tags.get(tags.size() - 1) + "} ?");
+      sb.append("<% } %>");
       if (hasParent()) {
          Map<String, Object> parentArgs = new HashMap<String, Object>();
          template = runTemplate(Config.PATH + parent, "__LOOSE__INTERNAL__DOLAYOUT__", "doLayout", parentArgs, Boolean.FALSE, extraArgs).replace("__LOOSE__INTERNAL__DOLAYOUT__", sb.toString());
@@ -559,8 +560,8 @@ public class Template {
       return runTemplate(fileName, body, tagToReplace, args, Boolean.TRUE, extraArgs);
    }
 
-   public String compile(Map<String, Object> args) throws ClassNotFoundException, IOException {
-      return new SimpleTemplateEngine().createTemplate(new StringBuilder("<% use(util.JavaExtensions) { %>").append(template).append("<% } %>").toString()).make(args).toString();
+   public String compile(Map<String, Object> args) throws ClassNotFoundException, IOException, MalformedTemplateException {
+      return new SimpleTemplateEngine().createTemplate(template).make(args).toString();
    }
 
    @Override

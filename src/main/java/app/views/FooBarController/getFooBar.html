@@ -56,4 +56,5 @@ var foo='bar';
 <input type="button" value="submit"/>
 #{/form}
 <br/>
-LISTFOOBAR VS ${list.foobar()}
+%{ String nl2brtest = "Testing\nnl2br\n\\o/"; }%
+${nl2brtest.nl2br()}
