@@ -58,3 +58,7 @@ var foo='bar';
 <br/>
 %{ String nl2brtest = "Testing\nnl2br\n\\o/"; }%
 ${nl2brtest.nl2br()}
+<br/>
+#{field 'foobar.foo'}
+FIELD | name: ${field.name} | id: ${field.id} | value: ${field.value} | /FIELD
+#{/field}

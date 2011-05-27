@@ -1,6 +1,7 @@
 package util;
 
 import groovy.text.SimpleTemplateEngine;
+import util.tags.Field;
 import util.tags.ListTag;
 
 import java.io.IOException;
@@ -98,6 +99,7 @@ public class Template {
       Map<String, Object> tagArgs = new HashMap<String, Object>();
       ListTag listTag = null;
       StringBuilder body = null;
+      Field field = null;
       int nestLevel = 0;
       char c;
       for (int i = 0; i < template.length(); ++i) {
@@ -162,6 +164,22 @@ public class Template {
                      body = null;
                      listTag = null;
                      tagArgs = new HashMap<String, Object>();
+                  } else if ("/field".equals(ts)) {
+                     if (!lastTag.equals("field"))
+                        throw new MalformedTemplateException("Unexpected /field, did you forget #{/" + lastTag + "}");
+                     tags.remove(lastTagIndex);
+                     tagArgs = new HashMap<String, Object>();
+                     tagArgs.put("field", field);
+                     try {
+                        Template f = new Template(body.toString(), extraArgs);
+                        sb.append(f.compile(tagArgs));
+                     } catch (Exception ex) {
+                        Logger.getLogger(Template.class.getName()).log(Level.SEVERE, null, ex);
+                        throw new MalformedTemplateException("Failed to execute #{field} -> \n" + body.toString() + " -> \n" + ex.getMessage());
+                     }
+                     body = null;
+                     field = null;
+                     tagArgs = new HashMap<String, Object>();
                   } else if ("/set".equals(ts)) {
                      if (!lastTag.equals("set"))
                         throw new MalformedTemplateException("Unexpected /set, did you forget #{/" + lastTag + "}");
@@ -219,8 +237,7 @@ public class Template {
                      sb.append("<% } else { %>");
                   } else {
                      // TODO: handle other play # tags
-                     // field, ...
-                     if ("list".equals(ts) || "form".equals(ts) || "script".equals(ts) || "a".equals(ts) || "stylesheet".equals(ts) || "extends".equals(ts) || "set".equals(ts) || "get".equals(ts)) {
+                     if ("list".equals(ts) || "form".equals(ts) || "script".equals(ts) || "a".equals(ts) || "stylesheet".equals(ts) || "extends".equals(ts) || "set".equals(ts) || "get".equals(ts) || "field".equals(ts)) {
                         tags.add(ts);
                         builtin = true;
                      } else
@@ -350,6 +367,25 @@ public class Template {
                            tagArgs.put("_items", items);
                         }
                         listTag = new ListTag(tagArgs);
+                        body = new StringBuilder();
+                     } else if ("field".equals(ts)) {
+                        Object fieldName = tagArgs.get("_arg");
+                        if (fieldName == null)
+                           throw new MalformedTemplateException("You forgot the argument of #{field} tag");
+                        field = new Field();
+                        field.name = fieldName.toString();
+                        field.id = field.name.replace(".", "_");
+                        String obj = field.name.split("\\?")[0].split("\\.")[0];
+                        //TODO: field.error stuff
+                        if (field.name.equals(obj))
+                           field.value = args.get(obj).toString();
+                        else {
+                           try {
+                              field.value = new SimpleTemplateEngine().createTemplate("${" + field.name + "}").make(args).toString();
+                           } catch (Exception ex) {
+                              Logger.getLogger(Template.class.getName()).log(Level.SEVERE, null, ex);
+                           }
+                        }
                         body = new StringBuilder();
                      } else if ("set".equals(ts)) {
                         body = new StringBuilder();
