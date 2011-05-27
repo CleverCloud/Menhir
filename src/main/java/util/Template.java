@@ -169,9 +169,8 @@ public class Template {
                         throw new MalformedTemplateException("No name given for #{set}#{/set} value.");
                      try {
                         Template value = new Template(body.toString(), extraArgs);
-                        SimpleTemplateEngine engine = new SimpleTemplateEngine();
                         value.compute(args);
-                        extraArgs.put(tmp.toString(), engine.createTemplate(value.toString()).make(args));
+                        extraArgs.put(tmp.toString(), value.compile(args));
                      } catch (Exception ex) {
                         Logger.getLogger(Template.class.getName()).log(Level.SEVERE, null, ex);
                         throw new MalformedTemplateException("Failed to evaluate #{set} " + tmp + " value");
@@ -219,7 +218,7 @@ public class Template {
                      sb.append("<% } else { %>");
                   } else {
                      // TODO: handle other play # tags
-                     // field, verbatim, ...
+                     // field, ...
                      if ("list".equals(ts) || "form".equals(ts) || "script".equals(ts) || "a".equals(ts) || "stylesheet".equals(ts) || "extends".equals(ts) || "set".equals(ts) || "get".equals(ts)) {
                         tags.add(ts);
                         builtin = true;
@@ -543,9 +542,8 @@ public class Template {
    public String runTemplate(String fileName, String body, String tagToReplace, Map<String, Object> args, Boolean isLastChild, Map<String, Object> extraArgs) throws MalformedTemplateException {
       try {
          Template tpl = new Template(fileName, body, tagToReplace, isLastChild, extraArgs);
-         SimpleTemplateEngine engine = new SimpleTemplateEngine();
          tpl.compute(args);
-         return engine.createTemplate(tpl.toString()).make(args).toString();
+         return tpl.compile(args);
       } catch (MalformedTemplateException ex) {
          throw ex;
       } catch (IOException ex) {
@@ -559,6 +557,10 @@ public class Template {
 
    public String runTemplate(String fileName, String body, String tagToReplace, Map<String, Object> args, Map<String, Object> extraArgs) throws MalformedTemplateException {
       return runTemplate(fileName, body, tagToReplace, args, Boolean.TRUE, extraArgs);
+   }
+
+   public String compile(Map<String, Object> args) throws ClassNotFoundException, IOException {
+      return new SimpleTemplateEngine().createTemplate(new StringBuilder("<% use(util.JavaExtensions) { %>").append(template).append("<% } %>").toString()).make(args).toString();
    }
 
    @Override

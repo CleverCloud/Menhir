@@ -1,6 +1,5 @@
 package util.tags;
 
-import groovy.text.SimpleTemplateEngine;
 import util.MalformedTemplateException;
 import util.Template;
 
@@ -42,9 +41,8 @@ public class ListTag {
             first = false;
          try {
             Template b = new ListBody(body, extraArgs);
-            SimpleTemplateEngine engine = new SimpleTemplateEngine();
             b.compute(args);
-            tpl.append(engine.createTemplate(b.toString()).make(args));
+            tpl.append(b.compile(args));
          } catch (Exception ex) {
             Logger.getLogger(Template.class.getName()).log(Level.SEVERE, null, ex);
             throw new MalformedTemplateException("Failed to execute #{list}");

@@ -1,9 +1,7 @@
 package base;
 
 import groovy.lang.Writable;
-import groovy.text.SimpleTemplateEngine;
 
-import java.io.IOException;
 import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -11,7 +9,6 @@ import javax.ejb.LocalBean;
 import javax.ejb.Stateless;
 import javax.ws.rs.core.Response;
 
-import org.codehaus.groovy.control.CompilationFailedException;
 import util.Config;
 import util.MalformedTemplateException;
 import util.Template;
@@ -47,13 +44,12 @@ public class Controller {
          templateFile = Config.PATH + "404.html";
       }
 
-      SimpleTemplateEngine engine = new SimpleTemplateEngine();
-      Writable templated = null;
+      String response = "";
       Template template;
       try {
          template = new Template(templateFile, null, null, null);
          template.compute(args);
-         templated = engine.createTemplate(template.toString()).make(args);
+         response = template.compile(args);
       } catch (MalformedTemplateException ex) {
          Logger.getLogger(Controller.class.getName()).log(Level.SEVERE, null, ex);
          return Response.serverError().entity(ex.toString()).build();
@@ -61,7 +57,6 @@ public class Controller {
          Logger.getLogger(caller).log(Level.SEVERE, null, ex);
       }
 
-      String response = (templated == null) ? "" : templated.toString();
       return Response.ok(response).build();
    }
 
