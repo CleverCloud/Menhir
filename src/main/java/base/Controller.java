@@ -48,7 +48,6 @@ public class Controller {
       Template template;
       try {
          template = new Template(templateFile, null, null, null);
-         template.compute(args);
          response = template.compile(args);
       } catch (MalformedTemplateException ex) {
          Logger.getLogger(Controller.class.getName()).log(Level.SEVERE, null, ex);

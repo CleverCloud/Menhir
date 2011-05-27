@@ -17,6 +17,7 @@ public class Template {
 
    private String template;
    private Boolean computed;
+   private Boolean compiled;
    private String parent;
    private Boolean isLastChild;
    private Map<String, Object> extraArgs;
@@ -82,6 +83,7 @@ public class Template {
 
    protected Template(Boolean isLastChild, Map<String, Object> extraArgs) {
       computed = Boolean.FALSE;
+      compiled = Boolean.FALSE;
       parent = null;
       this.isLastChild = isLastChild;
       this.extraArgs = (extraArgs == null) ? new HashMap<String, Object>() : extraArgs;
@@ -169,7 +171,6 @@ public class Template {
                         throw new MalformedTemplateException("No name given for #{set}#{/set} value.");
                      try {
                         Template value = new Template(body.toString(), extraArgs);
-                        value.compute(args);
                         extraArgs.put(tmp.toString(), value.compile(args));
                      } catch (Exception ex) {
                         Logger.getLogger(Template.class.getName()).log(Level.SEVERE, null, ex);
@@ -543,7 +544,6 @@ public class Template {
    public String runTemplate(String fileName, String body, String tagToReplace, Map<String, Object> args, Boolean isLastChild, Map<String, Object> extraArgs) throws MalformedTemplateException {
       try {
          Template tpl = new Template(fileName, body, tagToReplace, isLastChild, extraArgs);
-         tpl.compute(args);
          return tpl.compile(args);
       } catch (MalformedTemplateException ex) {
          throw ex;
@@ -561,7 +561,12 @@ public class Template {
    }
 
    public String compile(Map<String, Object> args) throws ClassNotFoundException, IOException, MalformedTemplateException {
-      return new SimpleTemplateEngine().createTemplate(template).make(args).toString();
+      if (!compiled) { // TODO: Check in cache
+         compute(args);
+         template = new SimpleTemplateEngine().createTemplate(template).make(args).toString(); // TODO: Cache instead of doing that
+         compiled = true;
+      }
+      return template;
    }
 
    @Override

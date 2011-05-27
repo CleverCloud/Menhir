@@ -41,7 +41,6 @@ public class ListTag {
             first = false;
          try {
             Template b = new ListBody(body, extraArgs);
-            b.compute(args);
             tpl.append(b.compile(args));
          } catch (Exception ex) {
             Logger.getLogger(Template.class.getName()).log(Level.SEVERE, null, ex);
