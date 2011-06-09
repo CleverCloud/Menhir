@@ -43,6 +43,37 @@ public class Template {
       template = fts.doJob(fileName);
       if (body != null)
          template = template.replaceAll("#\\{" + tagToReplace + " */\\}", body.replaceAll("\\$", "\\\\\\$"));
+      init();
+   }
+
+   protected Template(String tpl, boolean isLastChild, Map<String, Object> extraArgs) throws IOException, MalformedTemplateException {
+      this(isLastChild, extraArgs);
+      template = tpl;
+      init();
+   }
+
+   /* ListBody */
+   public Template(String tpl, Map<String, Object> extraArgs) throws IOException, MalformedTemplateException {
+      this(tpl, true, extraArgs);
+   }
+
+   /* Bootstrap for Controller */
+   public Template(String fileName) throws IOException, MalformedTemplateException {
+      this(fileName, null, null, true, null);
+   }
+
+   /* Common initialization, called by each instance */
+   private Template(boolean isLastChild, Map<String, Object> extraArgs) {
+      computed = false;
+      compiled = false;
+      parent = null;
+      this.isLastChild = isLastChild;
+      this.extraArgs = (extraArgs == null) ? new HashMap<String, Object>() : extraArgs;
+      registerBuiltinTags();
+   }
+
+   /* Finalization of the initialization */
+   private void init() throws IOException, MalformedTemplateException {
       Pattern p1 = Pattern.compile("(.*)#\\{include *'(.+)' */\\}(.*)");
       Pattern p2 = Pattern.compile("(.*)#\\{include *\"(.+)\" */\\}(.*)");
       Matcher m;
@@ -57,55 +88,10 @@ public class Template {
          String include = m.group(2);
          if (included.contains(include))
             throw new MalformedTemplateException("Recursive include detected: " + include);
-         template = m.group(1) + fts.doJob(Config.PATH + include) + m.group(3);
+         template = m.group(1) + new FileToString().doJob(Config.PATH + include) + m.group(3);
          included.add(include);
       }
       template = template.replace("__LOOSE__INTERNAL__NEWLINE__", "\n").replace("__LOOSE__INTERNAL__ESCAPE__", "\\");
-   }
-
-   protected Template(String tpl, boolean isLastChild, Map<String, Object> extraArgs) throws IOException, MalformedTemplateException {
-      this(isLastChild, extraArgs);
-      FileToString fts = new FileToString();
-      template = tpl;
-      Pattern p1 = Pattern.compile("(.*)#\\{include *'(.+)' */\\}(.*)");
-      Pattern p2 = Pattern.compile("(.*)#\\{include *\"(.+)\" */\\}(.*)");
-      Matcher m;
-      List<String> included = new ArrayList<String>();
-      template = template.replace("\n", "__LOOSE__INTERNAL__NEWLINE__");
-      for (; ; ) {
-         m = p1.matcher(template);
-         if (!m.matches()) {
-            m = p2.matcher(template);
-            if (!m.matches())
-               break;
-         }
-         String include = m.group(2);
-         if (included.contains(include))
-            throw new MalformedTemplateException("Recursive include detected: " + include);
-         template = m.group(1) + fts.doJob(Config.PATH + include) + m.group(3);
-         included.add(include);
-      }
-      template = template.replace("__LOOSE__INTERNAL__NEWLINE__", "\n").replace("__LOOSE__INTERNAL__ESCAPE__", "\\");
-   }
-
-   /* ListBody */
-   public Template(String tpl, Map<String, Object> extraArgs) throws IOException, MalformedTemplateException {
-      this(tpl, true, extraArgs);
-   }
-
-   /* Bootstrap for Controller */
-   public Template(String fileName) throws IOException, MalformedTemplateException {
-      this(fileName, null, null, true, null);
-   }
-
-   /* Common called by each instance */
-   private Template(boolean isLastChild, Map<String, Object> extraArgs) {
-      computed = false;
-      compiled = false;
-      parent = null;
-      this.isLastChild = isLastChild;
-      this.extraArgs = (extraArgs == null) ? new HashMap<String, Object>() : extraArgs;
-      registerBuiltinTags();
    }
 
    public void compute(Map<String, Object> args) throws MalformedTemplateException {
