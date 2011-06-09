@@ -16,6 +16,7 @@ import java.util.regex.Pattern;
  */
 public class Template {
 
+   //TODO: Check if isLastChild is really used as expected all the time
    private String template;
    private boolean computed;
    private boolean compiled;
@@ -37,6 +38,17 @@ public class Template {
       builtinTags.add("stylesheet");
    }
 
+   /**
+    * The complete Template constructor
+    *
+    * @param fileName     The name of the file containing the template
+    * @param body         The body to substitute (for template inclusions)
+    * @param tagToReplace The tag to replace by the body (template inclusion)
+    * @param isLastChild  Define if we're the original template when manipulating multiple ones
+    * @param extraArgs    Default args + args given in #{set}
+    * @throws IOException                If there is an error when reading the file
+    * @throws MalformedTemplateException If the template is malformed
+    */
    public Template(String fileName, String body, String tagToReplace, boolean isLastChild, Map<String, Object> extraArgs) throws IOException, MalformedTemplateException {
       this(
          (body == null) ?
@@ -47,17 +59,38 @@ public class Template {
       );
    }
 
-   /* Bootstrap for Controller */
+   /**
+    * Bootstrap for Controller with default values
+    *
+    * @param fileName The name of the file containing the template
+    * @throws IOException                If there is an error when reading the file
+    * @throws MalformedTemplateException If the template is malformed
+    */
    public Template(String fileName) throws IOException, MalformedTemplateException {
       this(fileName, null, null, true, null);
    }
 
-   /* isLastChild defaults to true for complex tags body */
+   /**
+    * The basic Template constructor. isLastChild defaults to true for complex tags body
+    *
+    * @param tpl       The template as a String
+    * @param extraArgs Default args + args given in #{set}
+    * @throws IOException                If there is an error when reading the file
+    * @throws MalformedTemplateException If the template is malformed
+    */
    public Template(String tpl, Map<String, Object> extraArgs) throws IOException, MalformedTemplateException {
       this(tpl, true, extraArgs);
    }
 
-   /* Common initialization, called by each instance */
+   /**
+    * The basic Template constructor, called by every other one
+    *
+    * @param tpl         The template as a String
+    * @param isLastChild Define if we're the original template when manipulating multiple ones
+    * @param extraArgs   Default args + args given in #{set}
+    * @throws IOException                If there is an error when reading the file
+    * @throws MalformedTemplateException If the template is malformed
+    */
    public Template(String tpl, boolean isLastChild, Map<String, Object> extraArgs) throws IOException, MalformedTemplateException {
       registerBuiltinTags();
       computed = false;
@@ -85,6 +118,12 @@ public class Template {
       template = template.replace("__LOOSE__INTERNAL__NEWLINE__", "\n").replace("__LOOSE__INTERNAL__ESCAPE__", "\\");
    }
 
+   /**
+    * Compute the template, parse it and make it a Groovy one
+    *
+    * @param args The args you want to pass to the template
+    * @throws MalformedTemplateException If the template is malformed
+    */
    public void compute(Map<String, Object> args) throws MalformedTemplateException {
       if (computed)
          return;
@@ -569,6 +608,29 @@ public class Template {
          template = template.replace("__LOOSE__INTERNAL__ESCAPE__", "");
    }
 
+   /**
+    * Compile the Template
+    *
+    * @param args The args you want to pass to the template
+    * @return The compiled template
+    * @throws ClassNotFoundException     If we're using anything we shouldn't in the template
+    * @throws IOException                If we fail to read a Tag or Template file
+    * @throws MalformedTemplateException If the template is malformed
+    */
+   public String compile(Map<String, Object> args) throws ClassNotFoundException, IOException, MalformedTemplateException {
+      if (!compiled) { // TODO: Check in cache
+         compute(args);
+         template = new SimpleTemplateEngine().createTemplate(template).make(args).toString(); // TODO: Cache instead of doing that
+         compiled = true;
+      }
+      return template;
+   }
+
+   /**
+    * Are we extending a parent template ?
+    *
+    * @return true if we are
+    */
    public boolean hasParent() {
       return (parent != null);
    }
@@ -590,15 +652,6 @@ public class Template {
 
    public String runTemplate(String fileName, String body, String tagToReplace, Map<String, Object> args, Map<String, Object> extraArgs) throws MalformedTemplateException {
       return runTemplate(fileName, body, tagToReplace, args, true, extraArgs);
-   }
-
-   public String compile(Map<String, Object> args) throws ClassNotFoundException, IOException, MalformedTemplateException {
-      if (!compiled) { // TODO: Check in cache
-         compute(args);
-         template = new SimpleTemplateEngine().createTemplate(template).make(args).toString(); // TODO: Cache instead of doing that
-         compiled = true;
-      }
-      return template;
    }
 
    @Override
