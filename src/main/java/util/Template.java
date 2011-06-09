@@ -67,7 +67,7 @@ public class Template {
     * @throws MalformedTemplateException If the template is malformed
     */
    public Template(String fileName) throws IOException, MalformedTemplateException {
-      this(fileName, null, null, true, null);
+      this(new FileToString().doJob(fileName), true, new HashMap<String, Object>());
    }
 
    /**
@@ -97,7 +97,7 @@ public class Template {
       compiled = false;
       parent = null;
       this.isLastChild = isLastChild;
-      this.extraArgs = (extraArgs == null) ? new HashMap<String, Object>() : extraArgs;
+      this.extraArgs = extraArgs;
       Pattern p1 = Pattern.compile("(.*)#\\{include *'(.+)' */\\}(.*)");
       Pattern p2 = Pattern.compile("(.*)#\\{include *\"(.+)\" */\\}(.*)");
       Matcher m;
