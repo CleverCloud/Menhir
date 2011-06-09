@@ -40,8 +40,8 @@ public class ListTag {
          if (first)
             first = false;
          try {
-            Template b = new ListBody(body, extraArgs);
-            tpl.append(b.compile(args));
+            Template listBody = new Template(body, extraArgs);
+            tpl.append(listBody.compile(args));
          } catch (Exception ex) {
             Logger.getLogger(Template.class.getName()).log(Level.SEVERE, null, ex);
             throw new MalformedTemplateException("Failed to execute #{list}");

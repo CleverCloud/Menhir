@@ -17,10 +17,10 @@ import java.util.regex.Pattern;
 public class Template {
 
    private String template;
-   private Boolean computed;
-   private Boolean compiled;
+   private boolean computed;
+   private boolean compiled;
    private String parent;
-   private Boolean isLastChild;
+   private boolean isLastChild;
    private Map<String, Object> extraArgs;
    private List<String> builtinTags;
 
@@ -37,7 +37,7 @@ public class Template {
       builtinTags.add("stylesheet");
    }
 
-   public Template(String fileName, String body, String tagToReplace, Boolean isLastChild, Map<String, Object> extraArgs) throws IOException, MalformedTemplateException {
+   public Template(String fileName, String body, String tagToReplace, boolean isLastChild, Map<String, Object> extraArgs) throws IOException, MalformedTemplateException {
       this(isLastChild, extraArgs);
       FileToString fts = new FileToString();
       template = fts.doJob(fileName);
@@ -63,11 +63,7 @@ public class Template {
       template = template.replace("__LOOSE__INTERNAL__NEWLINE__", "\n").replace("__LOOSE__INTERNAL__ESCAPE__", "\\");
    }
 
-   public Template(String fileName, String body, String tagToReplace, Map<String, Object> extraArgs) throws IOException, MalformedTemplateException {
-      this(fileName, body, tagToReplace, Boolean.TRUE, extraArgs);
-   }
-
-   protected Template(String tpl, Boolean isLastChild, Map<String, Object> extraArgs) throws IOException, MalformedTemplateException {
+   protected Template(String tpl, boolean isLastChild, Map<String, Object> extraArgs) throws IOException, MalformedTemplateException {
       this(isLastChild, extraArgs);
       FileToString fts = new FileToString();
       template = tpl;
@@ -92,13 +88,20 @@ public class Template {
       template = template.replace("__LOOSE__INTERNAL__NEWLINE__", "\n").replace("__LOOSE__INTERNAL__ESCAPE__", "\\");
    }
 
-   protected Template(String tpl, Map<String, Object> extraArgs) throws IOException, MalformedTemplateException {
-      this(tpl, Boolean.TRUE, extraArgs);
+   /* ListBody */
+   public Template(String tpl, Map<String, Object> extraArgs) throws IOException, MalformedTemplateException {
+      this(tpl, true, extraArgs);
    }
 
-   protected Template(Boolean isLastChild, Map<String, Object> extraArgs) {
-      computed = Boolean.FALSE;
-      compiled = Boolean.FALSE;
+   /* Bootstrap for Controller */
+   public Template(String fileName) throws IOException, MalformedTemplateException {
+      this(fileName, null, null, true, null);
+   }
+
+   /* Common called by each instance */
+   private Template(boolean isLastChild, Map<String, Object> extraArgs) {
+      computed = false;
+      compiled = false;
       parent = null;
       this.isLastChild = isLastChild;
       this.extraArgs = (extraArgs == null) ? new HashMap<String, Object>() : extraArgs;
@@ -108,8 +111,8 @@ public class Template {
    public void compute(Map<String, Object> args) throws MalformedTemplateException {
       if (computed)
          return;
+      computed = true;
       List<String> tags = new ArrayList<String>();
-      computed = Boolean.TRUE;
       StringBuilder sb = new StringBuilder("<% use(util.extensions.JavaExtensions) { %>");
       Map<String, Object> tagArgs = new HashMap<String, Object>();
       ListTag listTag = null;
@@ -581,7 +584,7 @@ public class Template {
       sb.append("<% } %>");
       if (hasParent()) {
          Map<String, Object> parentArgs = new HashMap<String, Object>();
-         template = runTemplate(Config.PATH + parent, "__LOOSE__INTERNAL__DOLAYOUT__", "doLayout", parentArgs, Boolean.FALSE, extraArgs).replace("__LOOSE__INTERNAL__DOLAYOUT__", sb.toString());
+         template = runTemplate(Config.PATH + parent, "__LOOSE__INTERNAL__DOLAYOUT__", "doLayout", parentArgs, false, extraArgs).replace("__LOOSE__INTERNAL__DOLAYOUT__", sb.toString());
          args.putAll(parentArgs); // TODO: how do we handle conflict here ?
       } else
          template = sb.toString();
@@ -593,7 +596,7 @@ public class Template {
       return (parent != null);
    }
 
-   public String runTemplate(String fileName, String body, String tagToReplace, Map<String, Object> args, Boolean isLastChild, Map<String, Object> extraArgs) throws MalformedTemplateException {
+   public String runTemplate(String fileName, String body, String tagToReplace, Map<String, Object> args, boolean isLastChild, Map<String, Object> extraArgs) throws MalformedTemplateException {
       try {
          Template tpl = new Template(fileName, body, tagToReplace, isLastChild, extraArgs);
          return tpl.compile(args);
@@ -609,7 +612,7 @@ public class Template {
    }
 
    public String runTemplate(String fileName, String body, String tagToReplace, Map<String, Object> args, Map<String, Object> extraArgs) throws MalformedTemplateException {
-      return runTemplate(fileName, body, tagToReplace, args, Boolean.TRUE, extraArgs);
+      return runTemplate(fileName, body, tagToReplace, args, true, extraArgs);
    }
 
    public String compile(Map<String, Object> args) throws ClassNotFoundException, IOException, MalformedTemplateException {
