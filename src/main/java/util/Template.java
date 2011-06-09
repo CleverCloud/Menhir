@@ -16,7 +16,7 @@ import java.util.regex.Pattern;
  */
 public class Template {
 
-   //TODO: Check if isLastChild is really used as expected all the time
+   //TODO: Test escaping in weird deep cases
    private String template;
    private boolean computed;
    private boolean compiled;
@@ -71,7 +71,7 @@ public class Template {
    }
 
    /**
-    * The basic Template constructor. isLastChild defaults to true for complex tags body
+    * The basic Template constructor. isLastChild defaults to false for complex tags body
     *
     * @param tpl       The template as a String
     * @param extraArgs Default args + args given in #{set}
@@ -79,7 +79,7 @@ public class Template {
     * @throws MalformedTemplateException If the template is malformed
     */
    public Template(String tpl, Map<String, Object> extraArgs) throws IOException, MalformedTemplateException {
-      this(tpl, true, extraArgs);
+      this(tpl, false, extraArgs);
    }
 
    /**
@@ -600,7 +600,7 @@ public class Template {
       sb.append("<% } %>");
       if (hasParent()) {
          Map<String, Object> parentArgs = new HashMap<String, Object>();
-         template = runTemplate(Config.PATH + parent, "__LOOSE__INTERNAL__DOLAYOUT__", "doLayout", parentArgs, false, extraArgs).replace("__LOOSE__INTERNAL__DOLAYOUT__", sb.toString());
+         template = runTemplate(Config.PATH + parent, "__LOOSE__INTERNAL__DOLAYOUT__", "doLayout", parentArgs, extraArgs).replace("__LOOSE__INTERNAL__DOLAYOUT__", sb.toString());
          args.putAll(parentArgs); // TODO: how do we handle conflict here ?
       } else
          template = sb.toString();
@@ -635,9 +635,9 @@ public class Template {
       return (parent != null);
    }
 
-   public String runTemplate(String fileName, String body, String tagToReplace, Map<String, Object> args, boolean isLastChild, Map<String, Object> extraArgs) throws MalformedTemplateException {
+   public String runTemplate(String fileName, String body, String tagToReplace, Map<String, Object> args, Map<String, Object> extraArgs) throws MalformedTemplateException {
       try {
-         Template tpl = new Template(fileName, body, tagToReplace, isLastChild, extraArgs);
+         Template tpl = new Template(fileName, body, tagToReplace, false, extraArgs);
          return tpl.compile(args);
       } catch (MalformedTemplateException ex) {
          throw ex;
@@ -648,10 +648,6 @@ public class Template {
          Logger.getLogger(Template.class.getName()).log(Level.SEVERE, null, ex);
          throw new MalformedTemplateException("Unknown error: " + ex.getMessage());
       }
-   }
-
-   public String runTemplate(String fileName, String body, String tagToReplace, Map<String, Object> args, Map<String, Object> extraArgs) throws MalformedTemplateException {
-      return runTemplate(fileName, body, tagToReplace, args, true, extraArgs);
    }
 
    @Override
