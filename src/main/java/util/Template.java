@@ -22,6 +22,20 @@ public class Template {
    private String parent;
    private Boolean isLastChild;
    private Map<String, Object> extraArgs;
+   private List<String> builtinTags;
+
+   private void registerBuiltinTags() {
+      builtinTags = new ArrayList<String>();
+      builtinTags.add("a");
+      builtinTags.add("extends");
+      builtinTags.add("field");
+      builtinTags.add("form");
+      builtinTags.add("get");
+      builtinTags.add("list");
+      builtinTags.add("script");
+      builtinTags.add("set");
+      builtinTags.add("stylesheet");
+   }
 
    public Template(String fileName, String body, String tagToReplace, Boolean isLastChild, Map<String, Object> extraArgs) throws IOException, MalformedTemplateException {
       this(isLastChild, extraArgs);
@@ -88,6 +102,7 @@ public class Template {
       parent = null;
       this.isLastChild = isLastChild;
       this.extraArgs = (extraArgs == null) ? new HashMap<String, Object>() : extraArgs;
+      registerBuiltinTags();
    }
 
    public void compute(Map<String, Object> args) throws MalformedTemplateException {
@@ -138,7 +153,7 @@ public class Template {
                   String ts = tag.toString();
                   if (i == template.length())
                      throw new MalformedTemplateException("Unexpected EOF while reading tag: " + ts);
-                  boolean custom = false;
+                  boolean special = true; // if, ifnot elseif, else, /*
                   boolean builtin = false;
                   int lastTagIndex = tags.size() - 1;
                   String lastTag = tags.isEmpty() ? "" : tags.get(lastTagIndex);
@@ -237,11 +252,10 @@ public class Template {
                      sb.append("<% } else { %>");
                   } else {
                      // TODO: handle other play # tags
-                     if ("list".equals(ts) || "form".equals(ts) || "script".equals(ts) || "a".equals(ts) || "stylesheet".equals(ts) || "extends".equals(ts) || "set".equals(ts) || "get".equals(ts) || "field".equals(ts)) {
+                     builtin = builtinTags.contains(ts);
+                     special = false;
+                     if (builtin)
                         tags.add(ts);
-                        builtin = true;
-                     } else
-                        custom = true;
                      if (ts.endsWith("/")) {
                         --i;
                         c = ' ';
@@ -347,126 +361,128 @@ public class Template {
                      }
                   }
                   boolean simpleTag = false;
-                  if (custom) {
-                     if (c != '/') {
-                        for (; i < template.length() && (c = template.charAt(i)) != '}' && c != '/'; ++i) ;
-                        if (c != '/') {
-                           tags.add(ts);
-                           body = new StringBuilder();
-                        }
-                     }
-                     simpleTag = (c == '/');
-                  } else if (builtin) {
-                     if ("list".equals(ts)) {
-                        if (!tagArgs.containsKey("_as"))
-                           tagArgs.put("_as", "_");
-                        if (!tagArgs.containsKey("_items")) {
-                           Object items = tagArgs.get("_arg");
-                           if (items == null)
-                              throw new MalformedTemplateException("You forgot the \"items\" argument in a #{list} tag");
-                           tagArgs.put("_items", items);
-                        }
-                        listTag = new ListTag(tagArgs);
-                        body = new StringBuilder();
-                     } else if ("field".equals(ts)) {
-                        Object fieldName = tagArgs.get("_arg");
-                        if (fieldName == null)
-                           throw new MalformedTemplateException("You forgot the argument of #{field} tag");
-                        field = new Field();
-                        field.name = fieldName.toString();
-                        field.id = field.name.replace(".", "_");
-                        String obj = field.name.split("\\?")[0].split("\\.")[0];
-                        //TODO: field.error stuff
-                        if (field.name.equals(obj))
-                           field.value = args.get(obj).toString();
-                        else {
-                           try {
-                              field.value = new SimpleTemplateEngine().createTemplate("${" + field.name + "}").make(args).toString();
-                           } catch (Exception ex) {
-                              Logger.getLogger(Template.class.getName()).log(Level.SEVERE, null, ex);
+                  if (!special) {
+                     if (builtin) {
+                        if ("list".equals(ts)) {
+                           if (!tagArgs.containsKey("_as"))
+                              tagArgs.put("_as", "_");
+                           if (!tagArgs.containsKey("_items")) {
+                              Object items = tagArgs.get("_arg");
+                              if (items == null)
+                                 throw new MalformedTemplateException("You forgot the \"items\" argument in a #{list} tag");
+                              tagArgs.put("_items", items);
                            }
+                           listTag = new ListTag(tagArgs);
+                           body = new StringBuilder();
+                        } else if ("field".equals(ts)) {
+                           Object fieldName = tagArgs.get("_arg");
+                           if (fieldName == null)
+                              throw new MalformedTemplateException("You forgot the argument of #{field} tag");
+                           field = new Field();
+                           field.name = fieldName.toString();
+                           field.id = field.name.replace(".", "_");
+                           String obj = field.name.split("\\?")[0].split("\\.")[0];
+                           //TODO: field.error stuff
+                           if (field.name.equals(obj))
+                              field.value = args.get(obj).toString();
+                           else {
+                              try {
+                                 field.value = new SimpleTemplateEngine().createTemplate("${" + field.name + "}").make(args).toString();
+                              } catch (Exception ex) {
+                                 Logger.getLogger(Template.class.getName()).log(Level.SEVERE, null, ex);
+                              }
+                           }
+                           body = new StringBuilder();
+                        } else if ("set".equals(ts)) {
+                           body = new StringBuilder();
+                           for (String key : tagArgs.keySet()) {
+                              if (!"_arg".equals(key))
+                                 extraArgs.put(key.substring(1), tagArgs.get(key));
+                           }
+                        } else {
+                           if ("form".equals(ts)) {
+                              String action;
+                              if (!tagArgs.containsKey("_action")) {
+                                 Object tmp = tagArgs.get("_arg");
+                                 if (tmp == null)
+                                    throw new MalformedTemplateException("No action given in form tag");
+                                 action = tmp.toString();
+                              } else
+                                 action = tagArgs.get("_action").toString();
+                              sb.append("<form action=\"").append(action).append("\" accept-charset=\"utf-8\" enctype=\"").append(tagArgs.containsKey("_enctype") ? tagArgs.get("_enctype") : "application/x-www-form-urlencoded").append("\"");
+                              if (tagArgs.containsKey("_id"))
+                                 sb.append(" id=\"").append(tagArgs.get("_id")).append("\"");
+                              if (tagArgs.containsKey("_method"))
+                                 sb.append(" method=\"").append(tagArgs.get("_method")).append("\"");
+                              sb.append(">");
+                           } else if ("script".equals(ts)) {
+                              if (!tagArgs.containsKey("_src"))
+                                 throw new MalformedTemplateException("Missing src in #{script}");
+                              sb.append("<script type=\"text/javascript\" src=\"").append(tagArgs.get("_src")).append("\" charset=\"").append(tagArgs.containsKey("_charset") ? tagArgs.get("_charset") : "utf-8").append("\"");
+                              if (tagArgs.containsKey("_id"))
+                                 sb.append(" id=\"").append(tagArgs.get("_id")).append("\"");
+                              sb.append(">");
+                           } else if ("a".equals(ts)) {
+                              if (!tagArgs.containsKey("_arg"))
+                                 throw new MalformedTemplateException("Argument missing in #{a}");
+                              sb.append("<a href=\"").append(tagArgs.get("_arg")).append("\">");
+                           } else if ("stylesheet".equals(ts)) {
+                              String src;
+                              if (!tagArgs.containsKey("_src")) {
+                                 Object tmp = tagArgs.get("_arg");
+                                 if (tmp == null)
+                                    throw new MalformedTemplateException("No src given in form stylesheet");
+                                 src = tmp.toString();
+                              } else
+                                 src = tagArgs.get("_src").toString();
+                              sb.append("<link rel=\"stylesheet\" type=\"text/css\" href=\"").append(src).append("\"");
+                              if (tagArgs.containsKey("_id"))
+                                 sb.append(" id=\"").append(tagArgs.get("_id")).append("\"");
+                              if (tagArgs.containsKey("_media"))
+                                 sb.append(" media=\"").append(tagArgs.get("_media")).append("\"");
+                              if (tagArgs.containsKey("_title"))
+                                 sb.append(" title=\"").append(tagArgs.get("_title")).append("\"");
+                              sb.append(" />");
+                           } else if ("extends".equals(ts)) {
+                              Object tmp = tagArgs.get("_arg");
+                              if (tmp == null)
+                                 throw new MalformedTemplateException("No parent given to #{extends/}");
+                              if (hasParent())
+                                 throw new MalformedTemplateException("Only one #{extends/} allowed per template");
+                              parent = tmp.toString();
+                           } else if ("get".equals(ts)) {
+                              Object tmp = tagArgs.get("_arg");
+                              if (tmp == null)
+                                 throw new MalformedTemplateException("You didn't specify a name in #{get /}");
+                              String key = tmp.toString();
+                              if (!extraArgs.containsKey(key))
+                                 throw new MalformedTemplateException("Could not found " + key + " for #{get /}. Did you forget to #{set} it ?");
+                              sb.append(extraArgs.get(key));
+                           }
+                           tagArgs = new HashMap<String, Object>();
                         }
-                        body = new StringBuilder();
-                     } else if ("set".equals(ts)) {
-                        body = new StringBuilder();
-                        for (String key : tagArgs.keySet()) {
-                           if (!"_arg".equals(key))
-                              extraArgs.put(key.substring(1), tagArgs.get(key));
+                        if (c == '/') {
+                           if ("script".equals(ts) || "stylesheet".equals(ts) || "extends".equals(ts) || "set".equals(ts) || "get".equals(ts)) {
+                              if (!tags.remove(tags.size() - 1).equals(ts))
+                                 throw new RuntimeException("Anything went wrong, we should never get there");
+                              if ("script".equals(ts))
+                                 sb.append("</").append(ts).append(">");
+                              else if ("set".equals(ts))
+                                 body = null;
+                           } else
+                              throw new MalformedTemplateException("#{" + ts + " /} is not allowed");
+                        } else if ("stylesheet".equals(ts) || "extends".equals(ts) || "get".equals(ts)) {
+                           throw new MalformedTemplateException("Missing / in " + ts + " tag");
                         }
                      } else {
-                        if ("form".equals(ts)) {
-                           String action;
-                           if (!tagArgs.containsKey("_action")) {
-                              Object tmp = tagArgs.get("_arg");
-                              if (tmp == null)
-                                 throw new MalformedTemplateException("No action given in form tag");
-                              action = tmp.toString();
-                           } else
-                              action = tagArgs.get("_action").toString();
-                           sb.append("<form action=\"").append(action).append("\" accept-charset=\"utf-8\" enctype=\"").append(tagArgs.containsKey("_enctype") ? tagArgs.get("_enctype") : "application/x-www-form-urlencoded").append("\"");
-                           if (tagArgs.containsKey("_id"))
-                              sb.append(" id=\"").append(tagArgs.get("_id")).append("\"");
-                           if (tagArgs.containsKey("_method"))
-                              sb.append(" method=\"").append(tagArgs.get("_method")).append("\"");
-                           sb.append(">");
-                        } else if ("script".equals(ts)) {
-                           if (!tagArgs.containsKey("_src"))
-                              throw new MalformedTemplateException("Missing src in #{script}");
-                           sb.append("<script type=\"text/javascript\" src=\"").append(tagArgs.get("_src")).append("\" charset=\"").append(tagArgs.containsKey("_charset") ? tagArgs.get("_charset") : "utf-8").append("\"");
-                           if (tagArgs.containsKey("_id"))
-                              sb.append(" id=\"").append(tagArgs.get("_id")).append("\"");
-                           sb.append(">");
-                        } else if ("a".equals(ts)) {
-                           if (!tagArgs.containsKey("_arg"))
-                              throw new MalformedTemplateException("Argument missing in #{a}");
-                           sb.append("<a href=\"").append(tagArgs.get("_arg")).append("\">");
-                        } else if ("stylesheet".equals(ts)) {
-                           String src;
-                           if (!tagArgs.containsKey("_src")) {
-                              Object tmp = tagArgs.get("_arg");
-                              if (tmp == null)
-                                 throw new MalformedTemplateException("No src given in form stylesheet");
-                              src = tmp.toString();
-                           } else
-                              src = tagArgs.get("_src").toString();
-                           sb.append("<link rel=\"stylesheet\" type=\"text/css\" href=\"").append(src).append("\"");
-                           if (tagArgs.containsKey("_id"))
-                              sb.append(" id=\"").append(tagArgs.get("_id")).append("\"");
-                           if (tagArgs.containsKey("_media"))
-                              sb.append(" media=\"").append(tagArgs.get("_media")).append("\"");
-                           if (tagArgs.containsKey("_title"))
-                              sb.append(" title=\"").append(tagArgs.get("_title")).append("\"");
-                           sb.append(" />");
-                        } else if ("extends".equals(ts)) {
-                           Object tmp = tagArgs.get("_arg");
-                           if (tmp == null)
-                              throw new MalformedTemplateException("No parent given to #{extends/}");
-                           if (hasParent())
-                              throw new MalformedTemplateException("Only one #{extends/} allowed per template");
-                           parent = tmp.toString();
-                        } else if ("get".equals(ts)) {
-                           Object tmp = tagArgs.get("_arg");
-                           if (tmp == null)
-                              throw new MalformedTemplateException("You didn't specify a name in #{get /}");
-                           String key = tmp.toString();
-                           if (!extraArgs.containsKey(key))
-                              throw new MalformedTemplateException("Could not found " + key + " for #{get /}. Did you forget to #{set} it ?");
-                           sb.append(extraArgs.get(key));
+                        if (c != '/') {
+                           for (; i < template.length() && (c = template.charAt(i)) != '}' && c != '/'; ++i) ;
+                           if (c != '/') {
+                              tags.add(ts);
+                              body = new StringBuilder();
+                           }
                         }
-                        tagArgs = new HashMap<String, Object>();
-                     }
-                     if (c == '/') {
-                        if ("script".equals(ts) || "stylesheet".equals(ts) || "extends".equals(ts) || "set".equals(ts) || "get".equals(ts)) {
-                           if (!tags.remove(tags.size() - 1).equals(ts))
-                              throw new RuntimeException("Anything went wrong, we should never get there");
-                           if ("script".equals(ts))
-                              sb.append("</").append(ts).append(">");
-                           else if ("set".equals(ts))
-                              body = null;
-                        } else
-                           throw new MalformedTemplateException("#{" + ts + " /} is not allowed");
-                     } else if ("stylesheet".equals(ts) || "extends".equals(ts) || "get".equals(ts)) {
-                        throw new MalformedTemplateException("Missing / in " + ts + " tag");
+                        simpleTag = (c == '/');
                      }
                   }
                   if (c != '}') {
