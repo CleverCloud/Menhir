@@ -40,7 +40,7 @@ public class ListTag {
          if (first)
             first = false;
          try {
-            Template listBody = new Template(body, extraArgs);
+            Template listBody = new Template(body, true, extraArgs);
             tpl.append(listBody.compile(args));
          } catch (Exception ex) {
             Logger.getLogger(Template.class.getName()).log(Level.SEVERE, null, ex);

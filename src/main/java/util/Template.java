@@ -38,23 +38,13 @@ public class Template {
    }
 
    public Template(String fileName, String body, String tagToReplace, boolean isLastChild, Map<String, Object> extraArgs) throws IOException, MalformedTemplateException {
-      this(isLastChild, extraArgs);
-      FileToString fts = new FileToString();
-      template = fts.doJob(fileName);
-      if (body != null)
-         template = template.replaceAll("#\\{" + tagToReplace + " */\\}", body.replaceAll("\\$", "\\\\\\$"));
-      init();
-   }
-
-   protected Template(String tpl, boolean isLastChild, Map<String, Object> extraArgs) throws IOException, MalformedTemplateException {
-      this(isLastChild, extraArgs);
-      template = tpl;
-      init();
-   }
-
-   /* ListBody */
-   public Template(String tpl, Map<String, Object> extraArgs) throws IOException, MalformedTemplateException {
-      this(tpl, true, extraArgs);
+      this(
+         (body == null) ?
+            new FileToString().doJob(fileName) :
+            new FileToString().doJob(fileName).replaceAll("#\\{" + tagToReplace + " */\\}", body.replaceAll("\\$", "\\\\\\$"))
+         , isLastChild
+         , extraArgs
+      );
    }
 
    /* Bootstrap for Controller */
@@ -62,23 +52,24 @@ public class Template {
       this(fileName, null, null, true, null);
    }
 
+   /* isLastChild defaults to true for complex tags body */
+   public Template(String tpl, Map<String, Object> extraArgs) throws IOException, MalformedTemplateException {
+      this(tpl, true, extraArgs);
+   }
+
    /* Common initialization, called by each instance */
-   private Template(boolean isLastChild, Map<String, Object> extraArgs) {
+   public Template(String tpl, boolean isLastChild, Map<String, Object> extraArgs) throws IOException, MalformedTemplateException {
+      registerBuiltinTags();
       computed = false;
       compiled = false;
       parent = null;
       this.isLastChild = isLastChild;
       this.extraArgs = (extraArgs == null) ? new HashMap<String, Object>() : extraArgs;
-      registerBuiltinTags();
-   }
-
-   /* Finalization of the initialization */
-   private void init() throws IOException, MalformedTemplateException {
       Pattern p1 = Pattern.compile("(.*)#\\{include *'(.+)' */\\}(.*)");
       Pattern p2 = Pattern.compile("(.*)#\\{include *\"(.+)\" */\\}(.*)");
       Matcher m;
       List<String> included = new ArrayList<String>();
-      template = template.replace("\n", "__LOOSE__INTERNAL__NEWLINE__");
+      template = tpl.replace("\n", "__LOOSE__INTERNAL__NEWLINE__");
       for (; ; ) {
          m = p1.matcher(template);
          if (!m.matches())
