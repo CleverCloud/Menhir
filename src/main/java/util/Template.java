@@ -625,19 +625,9 @@ public class Template {
       }
 
       if (!tags.isEmpty())
-         throw new
-
-            MalformedTemplateException("Unexpected EOF, maybe you forgot #{/" + tags.get(tags.size()
-
-            - 1) + "} ?");
+         throw new MalformedTemplateException("Unexpected EOF, maybe you forgot #{/" + tags.get(tags.size() - 1) + "} ?");
       sb.append("<% } %>");
-      if (
-
-         hasParent()
-
-         )
-
-      {
+      if (hasParent()) {
          Map<String, Object> parentArgs = new HashMap<String, Object>();
          template = runTemplate(Config.PATH + parent, "__LOOSE__INTERNAL__DOLAYOUT__", "doLayout", parentArgs, extraArgs).replace("__LOOSE__INTERNAL__DOLAYOUT__", sb.toString());
          args.putAll(parentArgs); // TODO: how do we handle conflict here ?
