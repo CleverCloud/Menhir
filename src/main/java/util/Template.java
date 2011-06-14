@@ -24,20 +24,7 @@ public class Template {
    private String parent;
    private boolean isLastChild;
    private Map<String, Object> extraArgs;
-   private List<Tags> builtinTags;
-
-   private void registerBuiltinTags() {
-      builtinTags = new ArrayList<Tags>();
-      builtinTags.add(Tags.A);
-      builtinTags.add(Tags.EXTENDS);
-      builtinTags.add(Tags.FIELD);
-      builtinTags.add(Tags.FORM);
-      builtinTags.add(Tags.GET);
-      builtinTags.add(Tags.LIST);
-      builtinTags.add(Tags.SCRIPT);
-      builtinTags.add(Tags.SET);
-      builtinTags.add(Tags.STYLESHEET);
-   }
+   private EnumSet<Tags> builtinTags;
 
    /**
     * The complete Template constructor
@@ -93,7 +80,7 @@ public class Template {
     * @throws MalformedTemplateException If the template is malformed
     */
    public Template(String tpl, boolean isLastChild, Map<String, Object> extraArgs) throws IOException, MalformedTemplateException {
-      registerBuiltinTags();
+      builtinTags = EnumSet.allOf(Tags.class);
       computed = false;
       compiled = false;
       parent = null;
