@@ -26,7 +26,8 @@ public enum Tags {
    SLASHLIST("/list"),
    SLASHSCRIPT("/script"),
    SLASHSET("/set"),
-   STYLESHEET("stylesheet");
+   STYLESHEET("stylesheet"),
+   OTHER("unknown");
 
    private String name;
 
@@ -75,9 +76,10 @@ public enum Tags {
          return SLASHSET;
       if ("stylesheet".equals(name))
          return STYLESHEET;
-      return null;
+      return OTHER;
    }
 
+   @Override
    public String toString() {
       return this.name;
    }

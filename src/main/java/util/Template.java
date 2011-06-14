@@ -81,6 +81,7 @@ public class Template {
     */
    public Template(String tpl, boolean isLastChild, Map<String, Object> extraArgs) throws IOException, MalformedTemplateException {
       builtinTags = EnumSet.allOf(Tags.class);
+      builtinTags.remove(Tags.OTHER);
       computed = false;
       compiled = false;
       parent = null;
@@ -173,242 +174,259 @@ public class Template {
                      break;
                   }
                   Tags tv = Tags.fromString(ts);
-                  if (Tags.SLASHIF.equals(tv)) {
-                     if (!lastTag.equals("if"))
-                        throw new MalformedTemplateException("Unexpected " + ts + ", did you forget #{/" + lastTag + "}");
-                     tags.remove(lastTagIndex);
-                     sb.append("<% } %>");
-                  } else if (Tags.SLASHLIST.equals(tv)) {
-                     if (!lastTag.equals("list"))
-                        throw new MalformedTemplateException("Unexpected /list, did you forget #{/" + lastTag + "}");
-                     tags.remove(lastTagIndex);
-                     listTag.compute(body.toString(), extraArgs);
-                     sb.append(listTag.toString());
-                     body = null;
-                     listTag = null;
-                     tagArgs = new HashMap<String, Object>();
-                  } else if (Tags.SLASHFIELD.equals(tv)) {
-                     if (!lastTag.equals("field"))
-                        throw new MalformedTemplateException("Unexpected /field, did you forget #{/" + lastTag + "}");
-                     tags.remove(lastTagIndex);
-                     tagArgs = new HashMap<String, Object>();
-                     tagArgs.put("field", field);
-                     try {
-                        Template f = new Template(body.toString(), extraArgs);
-                        sb.append(f.compile(tagArgs));
-                     } catch (Exception ex) {
-                        Logger.getLogger(Template.class.getName()).log(Level.SEVERE, null, ex);
-                        throw new MalformedTemplateException("Failed to execute #{field} -> \n" + body.toString() + " -> \n" + ex.getMessage());
-                     }
-                     body = null;
-                     field = null;
-                     tagArgs = new HashMap<String, Object>();
-                  } else if (Tags.SLASHSET.equals(tv)) {
-                     if (!lastTag.equals("set"))
-                        throw new MalformedTemplateException("Unexpected /set, did you forget #{/" + lastTag + "}");
-                     tags.remove(lastTagIndex);
-                     Object tmp = tagArgs.get("_arg");
-                     if (tmp == null)
-                        throw new MalformedTemplateException("No name given for #{set}#{/set} value.");
-                     try {
-                        Template value = new Template(body.toString(), extraArgs);
-                        extraArgs.put(tmp.toString(), value.compile(args));
-                     } catch (Exception ex) {
-                        Logger.getLogger(Template.class.getName()).log(Level.SEVERE, null, ex);
-                        throw new MalformedTemplateException("Failed to evaluate #{set} " + tmp + " value");
-                     }
-                     body = null;
-                  } else if (Tags.SLASHFORM.equals(tv) || Tags.SLASHSCRIPT.equals(tv) || Tags.SLASHA.equals(tv)) {
-                     if (!lastTag.equals(ts.substring(1)))
-                        throw new MalformedTemplateException("Unexpected " + ts + ", did you forget #{/" + lastTag + "}");
-                     tags.remove(lastTagIndex);
-                     sb.append("<" + ts + ">");
-                  } else if (ts.startsWith("/")) {
-                     if (!lastTag.equals(ts.substring(1)))
-                        throw new MalformedTemplateException("Unexpected /" + ts + ", did you forget #{/" + lastTag + "}");
-                     tags.remove(lastTagIndex);
-                     ts = ts.substring(1);
-                     sb.append(runTemplate(Config.PATH + "tags/" + ts + ".tag", body.toString(), "doBody", tagArgs, extraArgs));
-                     tagArgs = new HashMap<String, Object>();
-                     body = null;
-                  } else if (Tags.IF.equals(tv)) {
-                     tags.add("if");
-                     sb.append("<% if (");
-                     for (++i; i < template.length() && (c = template.charAt(i)) != '}'; ++i)
-                        sb.append(c);
-                     if (template.charAt(i - 1) == '/')
-                        throw new MalformedTemplateException("#{if /} is not allowed");
-                     sb.append(") { %>");
-                  } else if (Tags.IFNOT.equals(tv)) {
-                     tags.add("if");
-                     sb.append("<% } if (!(");
-                     for (++i; i < template.length() && (c = template.charAt(i)) != '}'; ++i)
-                        sb.append(c);
-                     if (template.charAt(i - 1) == '/')
-                        throw new MalformedTemplateException("#{ifnot /} is not allowed");
-                     sb.append(")) { %>");
-                  } else if (Tags.ELSEIF.equals(tv)) {
-                     if (!lastTag.equals("if"))
-                        throw new MalformedTemplateException("Unexpected elseif, did you forgot #{/" + lastTag + "}");
-                     sb.append("<% } else if (");
-                     for (++i; i < template.length() && (c = template.charAt(i)) != '}'; ++i)
-                        sb.append(c);
-                     sb.append(") { %>");
-                  } else if (Tags.ELSE.equals(tv)) {
-                     if (!lastTag.equals("if"))
-                        throw new MalformedTemplateException("Unexpected else, did you forgot #{/" + lastTag + "}");
-                     sb.append("<% } else { %>");
-                  } else {
-                     // TODO: handle other play # tags
-                     builtin = builtinTags.contains(Tags.fromString(ts));
-                     special = false;
-                     if (builtin)
-                        tags.add(ts);
-                     if (ts.endsWith("/")) {
-                        --i;
-                        c = ' ';
-                        tag = new StringBuilder(tag.substring(0, tag.length() - 1));
-                        ts = tag.toString();
-                     }
-                     while (c != '/' && c != '}') {
-                        for (; i < template.length() && template.charAt(i) == ' '; ++i) ;
-                        StringBuilder argName = new StringBuilder();
-                        StringBuilder argValue = new StringBuilder();
-                        char delim = template.charAt(i);
-                        boolean isString = (delim == '\'' || delim == '\"');
-                        if (isString) {
-                           if (++i == template.length())
-                              throw new MalformedTemplateException("Error while parsing tag " + ts + " (Missing data + delimiter " + delim + ")");
-                           for (; i < template.length() && (c = template.charAt(i)) != delim; ++i)
-                              argName.append(c);
-                           if (++i == template.length())
-                              throw new MalformedTemplateException("Error while parsing tag " + ts + " (Missing delimiter " + delim + ")");
-                           c = template.charAt(i);
-                        } else {
-                           for (; i < template.length() && (c = template.charAt(i)) != ':' && c != '/' && c != ' ' && c != '}' && c != ','; ++i)
-                              argName.append(c);
+                  switch (tv) {
+                     case SLASHIF:
+                        if (!lastTag.equals("if"))
+                           throw new MalformedTemplateException("Unexpected " + ts + ", did you forget #{/" + lastTag + "}");
+                        tags.remove(lastTagIndex);
+                        sb.append("<% } %>");
+                        break;
+                     case SLASHLIST:
+                        if (!lastTag.equals("list"))
+                           throw new MalformedTemplateException("Unexpected /list, did you forget #{/" + lastTag + "}");
+                        tags.remove(lastTagIndex);
+                        listTag.compute(body.toString(), extraArgs);
+                        sb.append(listTag.toString());
+                        body = null;
+                        listTag = null;
+                        tagArgs = new HashMap<String, Object>();
+                        break;
+                     case SLASHFIELD:
+                        if (!lastTag.equals("field"))
+                           throw new MalformedTemplateException("Unexpected /field, did you forget #{/" + lastTag + "}");
+                        tags.remove(lastTagIndex);
+                        tagArgs = new HashMap<String, Object>();
+                        tagArgs.put("field", field);
+                        try {
+                           Template f = new Template(body.toString(), extraArgs);
+                           sb.append(f.compile(tagArgs));
+                        } catch (Exception ex) {
+                           Logger.getLogger(Template.class.getName()).log(Level.SEVERE, null, ex);
+                           throw new MalformedTemplateException("Failed to execute #{field} -> \n" + body.toString() + " -> \n" + ex.getMessage());
                         }
-                        String argNs = argName.toString();
-                        if (c != ':') {
-                           int argNl = argName.length();
-                           if (argNl > 0) {
+                        body = null;
+                        field = null;
+                        tagArgs = new HashMap<String, Object>();
+                        break;
+                     case SLASHSET:
+                        if (!lastTag.equals("set"))
+                           throw new MalformedTemplateException("Unexpected /set, did you forget #{/" + lastTag + "}");
+                        tags.remove(lastTagIndex);
+                        Object tmp = tagArgs.get("_arg");
+                        if (tmp == null)
+                           throw new MalformedTemplateException("No name given for #{set}#{/set} value.");
+                        try {
+                           Template value = new Template(body.toString(), extraArgs);
+                           extraArgs.put(tmp.toString(), value.compile(args));
+                        } catch (Exception ex) {
+                           Logger.getLogger(Template.class.getName()).log(Level.SEVERE, null, ex);
+                           throw new MalformedTemplateException("Failed to evaluate #{set} " + tmp + " value");
+                        }
+                        body = null;
+                        break;
+                     case SLASHFORM:
+                     case SLASHSCRIPT:
+                     case SLASHA:
+                        if (!lastTag.equals(ts.substring(1)))
+                           throw new MalformedTemplateException("Unexpected " + ts + ", did you forget #{/" + lastTag + "}");
+                        tags.remove(lastTagIndex);
+                        sb.append("<" + ts + ">");
+                        break;
+                     case IF:
+                        tags.add("if");
+                        sb.append("<% if (");
+                        for (++i; i < template.length() && (c = template.charAt(i)) != '}'; ++i)
+                           sb.append(c);
+                        if (template.charAt(i - 1) == '/')
+                           throw new MalformedTemplateException("#{if /} is not allowed");
+                        sb.append(") { %>");
+                        break;
+                     case IFNOT:
+                        tags.add("if");
+                        sb.append("<% } if (!(");
+                        for (++i; i < template.length() && (c = template.charAt(i)) != '}'; ++i)
+                           sb.append(c);
+                        if (template.charAt(i - 1) == '/')
+                           throw new MalformedTemplateException("#{ifnot /} is not allowed");
+                        sb.append(")) { %>");
+                        break;
+                     case ELSEIF:
+                        if (!lastTag.equals("if"))
+                           throw new MalformedTemplateException("Unexpected elseif, did you forgot #{/" + lastTag + "}");
+                        sb.append("<% } else if (");
+                        for (++i; i < template.length() && (c = template.charAt(i)) != '}'; ++i)
+                           sb.append(c);
+                        sb.append(") { %>");
+                        break;
+                     case ELSE:
+                        if (!lastTag.equals("if"))
+                           throw new MalformedTemplateException("Unexpected else, did you forgot #{/" + lastTag + "}");
+                        sb.append("<% } else { %>");
+                        break;
+                     default:
+                        if (ts.startsWith("/")) {
+                           if (!lastTag.equals(ts.substring(1)))
+                              throw new MalformedTemplateException("Unexpected /" + ts + ", did you forget #{/" + lastTag + "}");
+                           tags.remove(lastTagIndex);
+                           ts = ts.substring(1);
+                           sb.append(runTemplate(Config.PATH + "tags/" + ts + ".tag", body.toString(), "doBody", tagArgs, extraArgs));
+                           tagArgs = new HashMap<String, Object>();
+                           body = null;
+                        } else {
+                           // TODO: handle other play # tags
+                           builtin = builtinTags.contains(Tags.fromString(ts));
+                           special = false;
+                           if (builtin)
+                              tags.add(ts);
+                           if (ts.endsWith("/")) {
+                              --i;
+                              c = ' ';
+                              tag = new StringBuilder(tag.substring(0, tag.length() - 1));
+                              ts = tag.toString();
+                           }
+                           while (c != '/' && c != '}') {
+                              for (; i < template.length() && template.charAt(i) == ' '; ++i) ;
+                              StringBuilder argName = new StringBuilder();
+                              StringBuilder argValue = new StringBuilder();
+                              char delim = template.charAt(i);
+                              boolean isString = (delim == '\'' || delim == '\"');
+                              if (isString) {
+                                 if (++i == template.length())
+                                    throw new MalformedTemplateException("Error while parsing tag " + ts + " (Missing data + delimiter " + delim + ")");
+                                 for (; i < template.length() && (c = template.charAt(i)) != delim; ++i)
+                                    argName.append(c);
+                                 if (++i == template.length())
+                                    throw new MalformedTemplateException("Error while parsing tag " + ts + " (Missing delimiter " + delim + ")");
+                                 c = template.charAt(i);
+                              } else {
+                                 for (; i < template.length() && (c = template.charAt(i)) != ':' && c != '/' && c != ' ' && c != '}' && c != ','; ++i)
+                                    argName.append(c);
+                              }
+                              String argNs = argName.toString();
+                              if (c != ':') {
+                                 int argNl = argName.length();
+                                 if (argNl > 0) {
+                                    if (isString)
+                                       tagArgs.put("_arg", argNs);
+                                    else {
+                                       String obj = argNs.split("\\?")[0].split("\\.")[0];
+                                       Object value = null;
+                                       if (argNs.equals(obj))
+                                          value = args.get(obj);
+                                       else {
+                                          try {
+                                             value = new SimpleTemplateEngine().createTemplate("${" + argNs + "}").make(args);
+                                          } catch (Exception ex) {
+                                             Logger.getLogger(Template.class.getName()).log(Level.SEVERE, null, ex);
+                                          }
+                                       }
+                                       tagArgs.put("_arg", value);
+                                    }
+                                 }
+                                 for (; i < template.length() && (c = template.charAt(i)) != '/' && c != '}' && c != ','; ++i) {
+                                    if (c != ' ')
+                                       throw new MalformedTemplateException("Unexpected character (" + c + ") found while parsing tag " + ts + " with anonymous argument.");
+                                 }
+                                 if (c == ',') {
+                                    if (++i == template.length())
+                                       throw new MalformedTemplateException("Error while parsing tag " + ts + " nothing found after ','");
+                                    continue;
+                                 }
+                                 break;
+                              }
+                              if (++i == template.length())
+                                 throw new MalformedTemplateException("Unexpected EOF while parsing argument " + argNs + " for tag" + ts);
+                              for (; i < template.length() && template.charAt(i) == ' '; ++i) ;
+                              if (c == '/' || c == '}') {
+                                 throw new MalformedTemplateException("Error while parsing argument " + argNs + " for tag " + ts);
+                              }
+                              delim = template.charAt(i);
+                              isString = (delim == '\'' || delim == '\"');
+                              if (isString) {
+                                 if (++i == template.length())
+                                    throw new MalformedTemplateException("Error while parsing argument " + argNs + " for tag " + ts + " (Missing data + delimiter " + delim + ")");
+                                 for (; i < template.length() && (c = template.charAt(i)) != delim; ++i)
+                                    argValue.append(c);
+                                 if (++i == template.length())
+                                    throw new MalformedTemplateException("Error while parsing argument " + argNs + " for tag " + ts + " (Missing delimiter " + delim + ")");
+                                 c = template.charAt(i);
+                              } else {
+                                 for (; i < template.length() && (c = template.charAt(i)) != '}' && c != ',' && c != '/'; ++i)
+                                    argValue.append(c);
+                              }
+                              if (c != '}' && c != '/') {
+                                 if (++i == template.length())
+                                    throw new MalformedTemplateException("Unexpected EOF while parsing tag " + ts);
+                              }
+                              for (; i < template.length() && (c = template.charAt(i)) == ' '; ++i) ;
+                              String argVs = argValue.toString();
                               if (isString)
-                                 tagArgs.put("_arg", argNs);
+                                 tagArgs.put("_" + argNs, argVs);
                               else {
-                                 String obj = argNs.split("\\?")[0].split("\\.")[0];
+                                 String obj = argVs.split("\\?")[0].split("\\.")[0];
                                  Object value = null;
-                                 if (argNs.equals(obj))
+                                 if (argVs.equals(obj))
                                     value = args.get(obj);
                                  else {
                                     try {
-                                       value = new SimpleTemplateEngine().createTemplate("${" + argNs + "}").make(args);
+                                       value = new SimpleTemplateEngine().createTemplate("${" + argVs + "}").make(args);
                                     } catch (Exception ex) {
                                        Logger.getLogger(Template.class.getName()).log(Level.SEVERE, null, ex);
                                     }
                                  }
-                                 tagArgs.put("_arg", value);
+                                 tagArgs.put("_" + argNs, value);
+                              }
+                              if (c == ',') {
+                                 if (++i == template.length())
+                                    throw new MalformedTemplateException("Unexpected EOF after , in tag " + ts);
                               }
                            }
-                           for (; i < template.length() && (c = template.charAt(i)) != '/' && c != '}' && c != ','; ++i) {
-                              if (c != ' ')
-                                 throw new MalformedTemplateException("Unexpected character (" + c + ") found while parsing tag " + ts + " with anonymous argument.");
-                           }
-                           if (c == ',') {
-                              if (++i == template.length())
-                                 throw new MalformedTemplateException("Error while parsing tag " + ts + " nothing found after ','");
-                              continue;
-                           }
-                           break;
                         }
-                        if (++i == template.length())
-                           throw new MalformedTemplateException("Unexpected EOF while parsing argument " + argNs + " for tag" + ts);
-                        for (; i < template.length() && template.charAt(i) == ' '; ++i) ;
-                        if (c == '/' || c == '}') {
-                           throw new MalformedTemplateException("Error while parsing argument " + argNs + " for tag " + ts);
-                        }
-                        delim = template.charAt(i);
-                        isString = (delim == '\'' || delim == '\"');
-                        if (isString) {
-                           if (++i == template.length())
-                              throw new MalformedTemplateException("Error while parsing argument " + argNs + " for tag " + ts + " (Missing data + delimiter " + delim + ")");
-                           for (; i < template.length() && (c = template.charAt(i)) != delim; ++i)
-                              argValue.append(c);
-                           if (++i == template.length())
-                              throw new MalformedTemplateException("Error while parsing argument " + argNs + " for tag " + ts + " (Missing delimiter " + delim + ")");
-                           c = template.charAt(i);
-                        } else {
-                           for (; i < template.length() && (c = template.charAt(i)) != '}' && c != ',' && c != '/'; ++i)
-                              argValue.append(c);
-                        }
-                        if (c != '}' && c != '/') {
-                           if (++i == template.length())
-                              throw new MalformedTemplateException("Unexpected EOF while parsing tag " + ts);
-                        }
-                        for (; i < template.length() && (c = template.charAt(i)) == ' '; ++i) ;
-                        String argVs = argValue.toString();
-                        if (isString)
-                           tagArgs.put("_" + argNs, argVs);
-                        else {
-                           String obj = argVs.split("\\?")[0].split("\\.")[0];
-                           Object value = null;
-                           if (argVs.equals(obj))
-                              value = args.get(obj);
-                           else {
-                              try {
-                                 value = new SimpleTemplateEngine().createTemplate("${" + argVs + "}").make(args);
-                              } catch (Exception ex) {
-                                 Logger.getLogger(Template.class.getName()).log(Level.SEVERE, null, ex);
-                              }
-                           }
-                           tagArgs.put("_" + argNs, value);
-                        }
-                        if (c == ',') {
-                           if (++i == template.length())
-                              throw new MalformedTemplateException("Unexpected EOF after , in tag " + ts);
-                        }
-                     }
                   }
                   boolean simpleTag = false;
                   if (!special) {
                      if (builtin) {
-                        if (Tags.LIST.equals(tv)) {
-                           if (!tagArgs.containsKey("_as"))
-                              tagArgs.put("_as", "_");
-                           if (!tagArgs.containsKey("_items")) {
-                              Object items = tagArgs.get("_arg");
-                              if (items == null)
-                                 throw new MalformedTemplateException("You forgot the \"items\" argument in a #{list} tag");
-                              tagArgs.put("_items", items);
-                           }
-                           listTag = new ListTag(tagArgs);
-                           body = new StringBuilder();
-                        } else if (Tags.FIELD.equals(tv)) {
-                           Object fieldName = tagArgs.get("_arg");
-                           if (fieldName == null)
-                              throw new MalformedTemplateException("You forgot the argument of #{field} tag");
-                           field = new Field();
-                           field.name = fieldName.toString();
-                           field.id = field.name.replace(".", "_");
-                           String obj = field.name.split("\\?")[0].split("\\.")[0];
-                           //TODO: field.error stuff
-                           if (field.name.equals(obj))
-                              field.value = args.get(obj).toString();
-                           else {
-                              try {
-                                 field.value = new SimpleTemplateEngine().createTemplate("${" + field.name + "}").make(args).toString();
-                              } catch (Exception ex) {
-                                 Logger.getLogger(Template.class.getName()).log(Level.SEVERE, null, ex);
+                        switch (tv) {
+                           case LIST:
+                              if (!tagArgs.containsKey("_as"))
+                                 tagArgs.put("_as", "_");
+                              if (!tagArgs.containsKey("_items")) {
+                                 Object items = tagArgs.get("_arg");
+                                 if (items == null)
+                                    throw new MalformedTemplateException("You forgot the \"items\" argument in a #{list} tag");
+                                 tagArgs.put("_items", items);
                               }
-                           }
-                           body = new StringBuilder();
-                        } else if (Tags.SET.equals(tv)) {
-                           body = new StringBuilder();
-                           for (String key : tagArgs.keySet()) {
-                              if (!"_arg".equals(key))
-                                 extraArgs.put(key.substring(1), tagArgs.get(key));
-                           }
-                        } else {
-                           if (Tags.FORM.equals(tv)) {
+                              listTag = new ListTag(tagArgs);
+                              body = new StringBuilder();
+                              break;
+                           case FIELD:
+                              Object fieldName = tagArgs.get("_arg");
+                              if (fieldName == null)
+                                 throw new MalformedTemplateException("You forgot the argument of #{field} tag");
+                              field = new Field();
+                              field.name = fieldName.toString();
+                              field.id = field.name.replace(".", "_");
+                              String obj = field.name.split("\\?")[0].split("\\.")[0];
+                              //TODO: field.error stuff
+                              if (field.name.equals(obj))
+                                 field.value = args.get(obj).toString();
+                              else {
+                                 try {
+                                    field.value = new SimpleTemplateEngine().createTemplate("${" + field.name + "}").make(args).toString();
+                                 } catch (Exception ex) {
+                                    Logger.getLogger(Template.class.getName()).log(Level.SEVERE, null, ex);
+                                 }
+                              }
+                              body = new StringBuilder();
+                              break;
+                           case SET:
+                              body = new StringBuilder();
+                              for (String key : tagArgs.keySet()) {
+                                 if (!"_arg".equals(key))
+                                    extraArgs.put(key.substring(1), tagArgs.get(key));
+                              }
+                              break;
+                           case FORM:
                               String action;
                               if (!tagArgs.containsKey("_action")) {
                                  Object tmp = tagArgs.get("_arg");
@@ -423,18 +441,24 @@ public class Template {
                               if (tagArgs.containsKey("_method"))
                                  sb.append(" method=\"").append(tagArgs.get("_method")).append("\"");
                               sb.append(">");
-                           } else if (Tags.SCRIPT.equals(tv)) {
+                              tagArgs = new HashMap<String, Object>();
+                              break;
+                           case SCRIPT:
                               if (!tagArgs.containsKey("_src"))
                                  throw new MalformedTemplateException("Missing src in #{script}");
                               sb.append("<script type=\"text/javascript\" src=\"").append(tagArgs.get("_src")).append("\" charset=\"").append(tagArgs.containsKey("_charset") ? tagArgs.get("_charset") : "utf-8").append("\"");
                               if (tagArgs.containsKey("_id"))
                                  sb.append(" id=\"").append(tagArgs.get("_id")).append("\"");
                               sb.append(">");
-                           } else if (Tags.A.equals(tv)) {
+                              tagArgs = new HashMap<String, Object>();
+                              break;
+                           case A:
                               if (!tagArgs.containsKey("_arg"))
                                  throw new MalformedTemplateException("Argument missing in #{a}");
                               sb.append("<a href=\"").append(tagArgs.get("_arg")).append("\">");
-                           } else if (Tags.STYLESHEET.equals(tv)) {
+                              tagArgs = new HashMap<String, Object>();
+                              break;
+                           case STYLESHEET:
                               String src;
                               if (!tagArgs.containsKey("_src")) {
                                  Object tmp = tagArgs.get("_arg");
@@ -451,36 +475,51 @@ public class Template {
                               if (tagArgs.containsKey("_title"))
                                  sb.append(" title=\"").append(tagArgs.get("_title")).append("\"");
                               sb.append(" />");
-                           } else if (Tags.EXTENDS.equals(tv)) {
+                              tagArgs = new HashMap<String, Object>();
+                              break;
+                           case EXTENDS:
                               Object tmp = tagArgs.get("_arg");
                               if (tmp == null)
                                  throw new MalformedTemplateException("No parent given to #{extends/}");
                               if (hasParent())
                                  throw new MalformedTemplateException("Only one #{extends/} allowed per template");
                               parent = tmp.toString();
-                           } else if (Tags.GET.equals(tv)) {
-                              Object tmp = tagArgs.get("_arg");
-                              if (tmp == null)
+                              tagArgs = new HashMap<String, Object>();
+                              break;
+                           case GET:
+                              Object tmp2 = tagArgs.get("_arg");
+                              if (tmp2 == null)
                                  throw new MalformedTemplateException("You didn't specify a name in #{get /}");
-                              String key = tmp.toString();
+                              String key = tmp2.toString();
                               if (!extraArgs.containsKey(key))
                                  throw new MalformedTemplateException("Could not found " + key + " for #{get /}. Did you forget to #{set} it ?");
                               sb.append(extraArgs.get(key));
-                           }
-                           tagArgs = new HashMap<String, Object>();
+                              tagArgs = new HashMap<String, Object>();
+                              break;
                         }
                         if (c == '/') {
-                           if (Tags.SCRIPT.equals(tv) || Tags.STYLESHEET.equals(tv) || Tags.EXTENDS.equals(tv) || Tags.SET.equals(tv) || Tags.GET.equals(tv)) {
-                              if (!tags.remove(tags.size() - 1).equals(ts))
-                                 throw new RuntimeException("Anything went wrong, we should never get there");
-                              if (Tags.SCRIPT.equals(tv))
+                           switch (tv) {
+                              case SCRIPT:
                                  sb.append("</").append(ts).append(">");
-                              else if (Tags.SET.equals(tv))
-                                 body = null;
-                           } else
-                              throw new MalformedTemplateException("#{" + ts + " /} is not allowed");
-                        } else if (Tags.STYLESHEET.equals(tv) || Tags.EXTENDS.equals(tv) || Tags.GET.equals(tv)) {
-                           throw new MalformedTemplateException("Missing / in " + ts + " tag");
+                              case STYLESHEET:
+                              case EXTENDS:
+                              case SET:
+                              case GET:
+                                 if (!tags.remove(tags.size() - 1).equals(ts))
+                                    throw new RuntimeException("Anything went wrong, we should never get there");
+                                 if (Tags.SET.equals(tv))
+                                    body = null;
+                                 break;
+                              default:
+                                 throw new MalformedTemplateException("#{" + ts + " /} is not allowed");
+                           }
+                        } else {
+                           switch (tv) {
+                              case STYLESHEET:
+                              case EXTENDS:
+                              case GET:
+                                 throw new MalformedTemplateException("Missing / in " + ts + " tag");
+                           }
                         }
                      } else {
                         if (c != '/') {
@@ -584,10 +623,21 @@ public class Template {
                sb.append(c);
          }
       }
+
       if (!tags.isEmpty())
-         throw new MalformedTemplateException("Unexpected EOF, maybe you forgot #{/" + tags.get(tags.size() - 1) + "} ?");
+         throw new
+
+            MalformedTemplateException("Unexpected EOF, maybe you forgot #{/" + tags.get(tags.size()
+
+            - 1) + "} ?");
       sb.append("<% } %>");
-      if (hasParent()) {
+      if (
+
+         hasParent()
+
+         )
+
+      {
          Map<String, Object> parentArgs = new HashMap<String, Object>();
          template = runTemplate(Config.PATH + parent, "__LOOSE__INTERNAL__DOLAYOUT__", "doLayout", parentArgs, extraArgs).replace("__LOOSE__INTERNAL__DOLAYOUT__", sb.toString());
          args.putAll(parentArgs); // TODO: how do we handle conflict here ?
