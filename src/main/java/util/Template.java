@@ -38,6 +38,8 @@ public class Template {
    private List<String> tags;
    private String lastTag;
    private int lastTagIndex;
+   private boolean builtin;
+   private boolean special; // if, ifnot elseif, else, /*
 
    /**
     * The complete Template constructor
@@ -194,24 +196,7 @@ public class Template {
       sb.append(" %>");
    }
 
-   private void handleTag(Map<String, Object> args) throws MalformedTemplateException {
-      StringBuilder tag = new StringBuilder();
-      for (++i; i < template.length() && (c = template.charAt(i)) != ' ' && c != '}'; ++i)
-         tag.append(c);
-      String ts = tag.toString();
-      if (i == template.length())
-         throw new MalformedTemplateException("Unexpected EOF while reading tag: " + ts);
-      boolean special = true; // if, ifnot elseif, else, /*
-      boolean builtin = false;
-      if (body != null && (!(ts.startsWith("/") && lastTag.equals(ts.substring(1))) || nestLevel > 0)) {
-         if (ts.equals(lastTag))
-            ++nestLevel;
-         else if (lastTag.equals(ts.substring(1)))
-            --nestLevel;
-         body.append("#{").append(ts).append(c);
-         return;
-      }
-      Tags tv = Tags.fromString(ts);
+   private void beginHandleTag(Tags tv, Map<String, Object> args, String ts) throws MalformedTemplateException {
       switch (tv) {
          case SLASHIF:
             popTag("if");
@@ -307,8 +292,7 @@ public class Template {
                if (ts.endsWith("/")) {
                   --i;
                   c = ' ';
-                  tag = new StringBuilder(tag.substring(0, tag.length() - 1));
-                  ts = tag.toString();
+                  ts = ts.substring(0, ts.length() - 1); /* TODO: check if that needs to be dispatched */
                }
                while (c != '/' && c != '}') {
                   for (; i < template.length() && template.charAt(i) == ' '; ++i) ;
@@ -409,6 +393,27 @@ public class Template {
                }
             }
       }
+   }
+
+   private void handleTag(Map<String, Object> args) throws MalformedTemplateException {
+      StringBuilder tag = new StringBuilder();
+      for (++i; i < template.length() && (c = template.charAt(i)) != ' ' && c != '}'; ++i)
+         tag.append(c);
+      String ts = tag.toString();
+      if (i == template.length())
+         throw new MalformedTemplateException("Unexpected EOF while reading tag: " + ts);
+      special = true;
+      builtin = false;
+      if (body != null && (!(ts.startsWith("/") && lastTag.equals(ts.substring(1))) || nestLevel > 0)) {
+         if (ts.equals(lastTag))
+            ++nestLevel;
+         else if (lastTag.equals(ts.substring(1)))
+            --nestLevel;
+         body.append("#{").append(ts).append(c);
+         return;
+      }
+      Tags tv = Tags.fromString(ts);
+      beginHandleTag(tv, args, ts);
       boolean simpleTag = false;
       if (!special) {
          if (builtin) {
