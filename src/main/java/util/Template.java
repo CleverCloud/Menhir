@@ -36,6 +36,8 @@ public class Template {
    private Field field;
    private StringBuilder body;
    private List<String> tags;
+   private String lastTag;
+   private int lastTagIndex;
 
    /**
     * The complete Template constructor
@@ -119,12 +121,24 @@ public class Template {
       template = template.replace("__LOOSE__INTERNAL__NEWLINE__", "\n").replace("__LOOSE__INTERNAL__ESCAPE__", "\\");
    }
 
+   private void popTag(String tag) throws MalformedTemplateException {
+      if (!lastTag.equals(tag))
+         throw new MalformedTemplateException("Unexpected #{/" + tag + "}, did you forget #{/" + lastTag + "}");
+      tags.remove(lastTagIndex--);
+      lastTag = tags.isEmpty() ? "" : tags.get(lastTagIndex);
+   }
+
+   private void pushTag(String tag) {
+      tags.add(tag);
+      lastTag = tags.get(++lastTagIndex);
+   }
+
    private void handleBody() throws MalformedTemplateException {
       for (; i < template.length(); ++i) {
          c = template.charAt(i);
          if (c == '*') {
             if (++i == template.length())
-               throw new MalformedTemplateException("Unexpected EOF in " + tags.get(tags.size() - 1));
+               throw new MalformedTemplateException("Unexpected EOF in " + lastTag);
             if ((c = template.charAt(i)) == '{')
                handleComment();
             else
@@ -189,8 +203,6 @@ public class Template {
          throw new MalformedTemplateException("Unexpected EOF while reading tag: " + ts);
       boolean special = true; // if, ifnot elseif, else, /*
       boolean builtin = false;
-      int lastTagIndex = tags.size() - 1;
-      String lastTag = tags.isEmpty() ? "" : tags.get(lastTagIndex).toString();
       if (body != null && (!(ts.startsWith("/") && lastTag.equals(ts.substring(1))) || nestLevel > 0)) {
          if (ts.equals(lastTag))
             ++nestLevel;
@@ -202,15 +214,11 @@ public class Template {
       Tags tv = Tags.fromString(ts);
       switch (tv) {
          case SLASHIF:
-            if (!lastTag.equals("if"))
-               throw new MalformedTemplateException("Unexpected " + ts + ", did you forget #{/" + lastTag + "}");
-            tags.remove(lastTagIndex);
+            popTag("if");
             sb.append("<% } %>");
             break;
          case SLASHLIST:
-            if (!lastTag.equals("list"))
-               throw new MalformedTemplateException("Unexpected /list, did you forget #{/" + lastTag + "}");
-            tags.remove(lastTagIndex);
+            popTag("list");
             listTag.compute(body.toString(), extraArgs);
             sb.append(listTag.toString());
             body = null;
@@ -218,9 +226,7 @@ public class Template {
             tagArgs = new HashMap<String, Object>();
             break;
          case SLASHFIELD:
-            if (!lastTag.equals("field"))
-               throw new MalformedTemplateException("Unexpected /field, did you forget #{/" + lastTag + "}");
-            tags.remove(lastTagIndex);
+            popTag("field");
             tagArgs = new HashMap<String, Object>();
             tagArgs.put("field", field);
             try {
@@ -235,9 +241,7 @@ public class Template {
             tagArgs = new HashMap<String, Object>();
             break;
          case SLASHSET:
-            if (!lastTag.equals("set"))
-               throw new MalformedTemplateException("Unexpected /set, did you forget #{/" + lastTag + "}");
-            tags.remove(lastTagIndex);
+            popTag("set");
             Object tmp = tagArgs.get("_arg");
             if (tmp == null)
                throw new MalformedTemplateException("No name given for #{set}#{/set} value.");
@@ -253,13 +257,11 @@ public class Template {
          case SLASHFORM:
          case SLASHSCRIPT:
          case SLASHA:
-            if (!lastTag.equals(ts.substring(1)))
-               throw new MalformedTemplateException("Unexpected " + ts + ", did you forget #{/" + lastTag + "}");
-            tags.remove(lastTagIndex);
+            popTag(ts.substring(1));
             sb.append("<" + ts + ">");
             break;
          case IF:
-            tags.add("if");
+            pushTag("if");
             sb.append("<% if (");
             for (++i; i < template.length() && (c = template.charAt(i)) != '}'; ++i)
                sb.append(c);
@@ -268,7 +270,7 @@ public class Template {
             sb.append(") { %>");
             break;
          case IFNOT:
-            tags.add("if");
+            pushTag("if");
             sb.append("<% } if (!(");
             for (++i; i < template.length() && (c = template.charAt(i)) != '}'; ++i)
                sb.append(c);
@@ -291,10 +293,8 @@ public class Template {
             break;
          default:
             if (ts.startsWith("/")) {
-               if (!lastTag.equals(ts.substring(1)))
-                  throw new MalformedTemplateException("Unexpected /" + ts + ", did you forget #{/" + lastTag + "}");
-               tags.remove(lastTagIndex);
                ts = ts.substring(1);
+               popTag(ts);
                sb.append(runTemplate(Config.PATH + "tags/" + ts + ".tag", body.toString(), "doBody", tagArgs, extraArgs));
                tagArgs = new HashMap<String, Object>();
                body = null;
@@ -303,7 +303,7 @@ public class Template {
                builtin = builtinTags.contains(Tags.fromString(ts));
                special = false;
                if (builtin)
-                  tags.add(ts);
+                  pushTag(ts);
                if (ts.endsWith("/")) {
                   --i;
                   c = ' ';
@@ -531,8 +531,7 @@ public class Template {
                   case EXTENDS:
                   case SET:
                   case GET:
-                     if (!tags.remove(tags.size() - 1).equals(ts))
-                        throw new RuntimeException("Anything went wrong, we should never get there");
+                     popTag(ts);
                      if (Tags.SET.equals(tv))
                         body = null;
                      break;
@@ -551,7 +550,7 @@ public class Template {
             if (c != '/') {
                for (; i < template.length() && (c = template.charAt(i)) != '}' && c != '/'; ++i) ;
                if (c != '/') {
-                  tags.add(ts);
+                  pushTag(ts);
                   body = new StringBuilder();
                }
             }
@@ -589,6 +588,8 @@ public class Template {
       body = null;
       field = null;
       nestLevel = 0;
+      lastTag = "";
+      lastTagIndex = -1;
       for (i = 0; i < template.length(); ++i) {
          c = template.charAt(i);
          if (body != null) {
@@ -599,7 +600,7 @@ public class Template {
             case '#':
                if (++i == template.length()) {
                   if (body != null)
-                     throw new MalformedTemplateException("Unexpected EOF while reading " + tags.get(tags.size() - 1) + " body");
+                     throw new MalformedTemplateException("Unexpected EOF while reading " + lastTag + " body");
                   sb.append('#');
                } else if ((c = template.charAt(i)) == '{')
                   handleTag(args);
@@ -649,7 +650,7 @@ public class Template {
       }
 
       if (!tags.isEmpty())
-         throw new MalformedTemplateException("Unexpected EOF, maybe you forgot #{/" + tags.get(tags.size() - 1) + "} ?");
+         throw new MalformedTemplateException("Unexpected EOF, maybe you forgot #{/" + lastTag + "} ?");
       sb.append("<% } %>");
       if (hasParent()) {
          Map<String, Object> parentArgs = new HashMap<String, Object>();
