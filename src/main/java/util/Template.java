@@ -94,10 +94,11 @@ public class Template {
       template = tpl.replace("\n", "__LOOSE__INTERNAL__NEWLINE__");
       for (; ; ) {
          m = p1.matcher(template);
-         if (!m.matches())
+         if (!m.matches()) {
             m = p2.matcher(template);
-         if (!m.matches())
-            break;
+            if (!m.matches())
+               break;
+         }
          String include = m.group(2);
          if (included.contains(include))
             throw new MalformedTemplateException("Recursive include detected: " + include);
