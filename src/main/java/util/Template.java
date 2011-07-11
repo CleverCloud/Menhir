@@ -281,6 +281,115 @@ public class Template {
       sb.append("<% } else { %>");
    }
 
+   private void handleNonSpecialTag(Map<String, Object> args, String ts) throws MalformedTemplateException {
+      builtin = builtinTags.contains(Tags.fromString(ts));
+      special = false;
+      if (builtin)
+         pushTag(ts);
+      if (ts.endsWith("/")) {
+         --i;
+         c = ' ';
+         ts = ts.substring(0, ts.length() - 1); /* TODO: check if that needs to be dispatched */
+      }
+      while (c != '/' && c != '}') {
+         for (; i < template.length() && template.charAt(i) == ' '; ++i) ;
+         StringBuilder argName = new StringBuilder();
+         StringBuilder argValue = new StringBuilder();
+         char delim = template.charAt(i);
+         boolean isString = (delim == '\'' || delim == '\"');
+         if (isString) {
+            if (++i == template.length())
+               throw new MalformedTemplateException("Error while parsing tag " + ts + " (Missing data + delimiter " + delim + ")");
+            for (; i < template.length() && (c = template.charAt(i)) != delim; ++i)
+               argName.append(c);
+            if (++i == template.length())
+               throw new MalformedTemplateException("Error while parsing tag " + ts + " (Missing delimiter " + delim + ")");
+            c = template.charAt(i);
+         } else {
+            for (; i < template.length() && (c = template.charAt(i)) != ':' && c != '/' && c != ' ' && c != '}' && c != ','; ++i)
+               argName.append(c);
+         }
+         String argNs = argName.toString();
+         if (c != ':') {
+            int argNl = argName.length();
+            if (argNl > 0) {
+               if (isString)
+                  tagArgs.put("_arg", argNs);
+               else {
+                  String obj = argNs.split("\\?")[0].split("\\.")[0];
+                  Object value = null;
+                  if (argNs.equals(obj))
+                     value = args.get(obj);
+                  else {
+                     try {
+                        value = new SimpleTemplateEngine().createTemplate("${" + argNs + "}").make(args);
+                     } catch (Exception ex) {
+                        Logger.getLogger(Template.class.getName()).log(Level.SEVERE, null, ex);
+                     }
+                  }
+                  tagArgs.put("_arg", value);
+               }
+            }
+            for (; i < template.length() && (c = template.charAt(i)) != '/' && c != '}' && c != ','; ++i) {
+               if (c != ' ')
+                  throw new MalformedTemplateException("Unexpected character (" + c + ") found while parsing tag " + ts + " with anonymous argument.");
+            }
+            if (c == ',') {
+               if (++i == template.length())
+                  throw new MalformedTemplateException("Error while parsing tag " + ts + " nothing found after ','");
+               continue;
+            }
+            break;
+         }
+         if (++i == template.length())
+            throw new MalformedTemplateException("Unexpected EOF while parsing argument " + argNs + " for tag" + ts);
+         for (; i < template.length() && template.charAt(i) == ' '; ++i) ;
+         if (c == '/' || c == '}') {
+            throw new MalformedTemplateException("Error while parsing argument " + argNs + " for tag " + ts);
+         }
+         delim = template.charAt(i);
+         isString = (delim == '\'' || delim == '\"');
+         if (isString) {
+            if (++i == template.length())
+               throw new MalformedTemplateException("Error while parsing argument " + argNs + " for tag " + ts + " (Missing data + delimiter " + delim + ")");
+            for (; i < template.length() && (c = template.charAt(i)) != delim; ++i)
+               argValue.append(c);
+            if (++i == template.length())
+               throw new MalformedTemplateException("Error while parsing argument " + argNs + " for tag " + ts + " (Missing delimiter " + delim + ")");
+            c = template.charAt(i);
+         } else {
+            for (; i < template.length() && (c = template.charAt(i)) != '}' && c != ',' && c != '/'; ++i)
+               argValue.append(c);
+         }
+         if (c != '}' && c != '/') {
+            if (++i == template.length())
+               throw new MalformedTemplateException("Unexpected EOF while parsing tag " + ts);
+         }
+         for (; i < template.length() && (c = template.charAt(i)) == ' '; ++i) ;
+         String argVs = argValue.toString();
+         if (isString)
+            tagArgs.put("_" + argNs, argVs);
+         else {
+            String obj = argVs.split("\\?")[0].split("\\.")[0];
+            Object value = null;
+            if (argVs.equals(obj))
+               value = args.get(obj);
+            else {
+               try {
+                  value = new SimpleTemplateEngine().createTemplate("${" + argVs + "}").make(args);
+               } catch (Exception ex) {
+                  Logger.getLogger(Template.class.getName()).log(Level.SEVERE, null, ex);
+               }
+            }
+            tagArgs.put("_" + argNs, value);
+         }
+         if (c == ',') {
+            if (++i == template.length())
+               throw new MalformedTemplateException("Unexpected EOF after , in tag " + ts);
+         }
+      }
+   }
+
    private void handleSpecialTag(Tags tv, Map<String, Object> args, String ts) throws MalformedTemplateException {
       switch (tv) {
          case SLASHIF:
@@ -320,112 +429,7 @@ public class Template {
                tagArgs = new HashMap<String, Object>();
                body = null;
             } else {
-               builtin = builtinTags.contains(Tags.fromString(ts));
-               special = false;
-               if (builtin)
-                  pushTag(ts);
-               if (ts.endsWith("/")) {
-                  --i;
-                  c = ' ';
-                  ts = ts.substring(0, ts.length() - 1); /* TODO: check if that needs to be dispatched */
-               }
-               while (c != '/' && c != '}') {
-                  for (; i < template.length() && template.charAt(i) == ' '; ++i) ;
-                  StringBuilder argName = new StringBuilder();
-                  StringBuilder argValue = new StringBuilder();
-                  char delim = template.charAt(i);
-                  boolean isString = (delim == '\'' || delim == '\"');
-                  if (isString) {
-                     if (++i == template.length())
-                        throw new MalformedTemplateException("Error while parsing tag " + ts + " (Missing data + delimiter " + delim + ")");
-                     for (; i < template.length() && (c = template.charAt(i)) != delim; ++i)
-                        argName.append(c);
-                     if (++i == template.length())
-                        throw new MalformedTemplateException("Error while parsing tag " + ts + " (Missing delimiter " + delim + ")");
-                     c = template.charAt(i);
-                  } else {
-                     for (; i < template.length() && (c = template.charAt(i)) != ':' && c != '/' && c != ' ' && c != '}' && c != ','; ++i)
-                        argName.append(c);
-                  }
-                  String argNs = argName.toString();
-                  if (c != ':') {
-                     int argNl = argName.length();
-                     if (argNl > 0) {
-                        if (isString)
-                           tagArgs.put("_arg", argNs);
-                        else {
-                           String obj = argNs.split("\\?")[0].split("\\.")[0];
-                           Object value = null;
-                           if (argNs.equals(obj))
-                              value = args.get(obj);
-                           else {
-                              try {
-                                 value = new SimpleTemplateEngine().createTemplate("${" + argNs + "}").make(args);
-                              } catch (Exception ex) {
-                                 Logger.getLogger(Template.class.getName()).log(Level.SEVERE, null, ex);
-                              }
-                           }
-                           tagArgs.put("_arg", value);
-                        }
-                     }
-                     for (; i < template.length() && (c = template.charAt(i)) != '/' && c != '}' && c != ','; ++i) {
-                        if (c != ' ')
-                           throw new MalformedTemplateException("Unexpected character (" + c + ") found while parsing tag " + ts + " with anonymous argument.");
-                     }
-                     if (c == ',') {
-                        if (++i == template.length())
-                           throw new MalformedTemplateException("Error while parsing tag " + ts + " nothing found after ','");
-                        continue;
-                     }
-                     break;
-                  }
-                  if (++i == template.length())
-                     throw new MalformedTemplateException("Unexpected EOF while parsing argument " + argNs + " for tag" + ts);
-                  for (; i < template.length() && template.charAt(i) == ' '; ++i) ;
-                  if (c == '/' || c == '}') {
-                     throw new MalformedTemplateException("Error while parsing argument " + argNs + " for tag " + ts);
-                  }
-                  delim = template.charAt(i);
-                  isString = (delim == '\'' || delim == '\"');
-                  if (isString) {
-                     if (++i == template.length())
-                        throw new MalformedTemplateException("Error while parsing argument " + argNs + " for tag " + ts + " (Missing data + delimiter " + delim + ")");
-                     for (; i < template.length() && (c = template.charAt(i)) != delim; ++i)
-                        argValue.append(c);
-                     if (++i == template.length())
-                        throw new MalformedTemplateException("Error while parsing argument " + argNs + " for tag " + ts + " (Missing delimiter " + delim + ")");
-                     c = template.charAt(i);
-                  } else {
-                     for (; i < template.length() && (c = template.charAt(i)) != '}' && c != ',' && c != '/'; ++i)
-                        argValue.append(c);
-                  }
-                  if (c != '}' && c != '/') {
-                     if (++i == template.length())
-                        throw new MalformedTemplateException("Unexpected EOF while parsing tag " + ts);
-                  }
-                  for (; i < template.length() && (c = template.charAt(i)) == ' '; ++i) ;
-                  String argVs = argValue.toString();
-                  if (isString)
-                     tagArgs.put("_" + argNs, argVs);
-                  else {
-                     String obj = argVs.split("\\?")[0].split("\\.")[0];
-                     Object value = null;
-                     if (argVs.equals(obj))
-                        value = args.get(obj);
-                     else {
-                        try {
-                           value = new SimpleTemplateEngine().createTemplate("${" + argVs + "}").make(args);
-                        } catch (Exception ex) {
-                           Logger.getLogger(Template.class.getName()).log(Level.SEVERE, null, ex);
-                        }
-                     }
-                     tagArgs.put("_" + argNs, value);
-                  }
-                  if (c == ',') {
-                     if (++i == template.length())
-                        throw new MalformedTemplateException("Unexpected EOF after , in tag " + ts);
-                  }
-               }
+               handleNonSpecialTag(args, ts);
             }
       }
    }
