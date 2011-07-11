@@ -281,7 +281,7 @@ public class Template {
       sb.append("<% } else { %>");
    }
 
-   private void beginHandleTag(Tags tv, Map<String, Object> args, String ts) throws MalformedTemplateException {
+   private void handleSpecialTag(Tags tv, Map<String, Object> args, String ts) throws MalformedTemplateException {
       switch (tv) {
          case SLASHIF:
             slashIf();
@@ -430,6 +430,179 @@ public class Template {
       }
    }
 
+   private void list() throws MalformedTemplateException {
+      if (!tagArgs.containsKey("_as"))
+         tagArgs.put("_as", "_");
+      if (!tagArgs.containsKey("_items")) {
+         Object items = tagArgs.get("_arg");
+         if (items == null)
+            throw new MalformedTemplateException("You forgot the \"items\" argument in a #{list} tag");
+         tagArgs.put("_items", items);
+      }
+      listTag = new ListTag(tagArgs);
+      body = new StringBuilder();
+   }
+
+   private void FIELD(Map<String, Object> args) throws MalformedTemplateException {
+      Object fieldName = tagArgs.get("_arg");
+      if (fieldName == null)
+         throw new MalformedTemplateException("You forgot the argument of #{field} tag");
+      field = new Field();
+      field.name = fieldName.toString();
+      field.id = field.name.replace(".", "_");
+      String obj = field.name.split("\\?")[0].split("\\.")[0];
+      //TODO: field.error stuff
+      if (field.name.equals(obj))
+         field.value = args.get(obj).toString();
+      else {
+         try {
+            field.value = new SimpleTemplateEngine().createTemplate("${" + field.name + "}").make(args).toString();
+         } catch (Exception ex) {
+            Logger.getLogger(Template.class.getName()).log(Level.SEVERE, null, ex);
+         }
+      }
+      body = new StringBuilder();
+   }
+
+   private void set() throws MalformedTemplateException {
+      body = new StringBuilder();
+      for (String key : tagArgs.keySet()) {
+         if (!"_arg".equals(key))
+            extraArgs.put(key.substring(1), tagArgs.get(key));
+      }
+   }
+
+   private void form() throws MalformedTemplateException {
+      String action;
+      if (!tagArgs.containsKey("_action")) {
+         Object tmp = tagArgs.get("_arg");
+         if (tmp == null)
+            throw new MalformedTemplateException("No action given in form tag");
+         action = tmp.toString();
+      } else
+         action = tagArgs.get("_action").toString();
+      sb.append("<form action=\"").append(action).append("\" accept-charset=\"utf-8\" enctype=\"").append(tagArgs.containsKey("_enctype") ? tagArgs.get("_enctype") : "application/x-www-form-urlencoded").append("\"");
+      if (tagArgs.containsKey("_id"))
+         sb.append(" id=\"").append(tagArgs.get("_id")).append("\"");
+      if (tagArgs.containsKey("_method"))
+         sb.append(" method=\"").append(tagArgs.get("_method")).append("\"");
+      sb.append(">");
+      tagArgs = new HashMap<String, Object>();
+   }
+
+   private void script() throws MalformedTemplateException {
+      if (!tagArgs.containsKey("_src"))
+         throw new MalformedTemplateException("Missing src in #{script}");
+      sb.append("<script type=\"text/javascript\" src=\"").append(tagArgs.get("_src")).append("\" charset=\"").append(tagArgs.containsKey("_charset") ? tagArgs.get("_charset") : "utf-8").append("\"");
+      if (tagArgs.containsKey("_id"))
+         sb.append(" id=\"").append(tagArgs.get("_id")).append("\"");
+      sb.append(">");
+      tagArgs = new HashMap<String, Object>();
+   }
+
+   private void a() throws MalformedTemplateException {
+      if (!tagArgs.containsKey("_arg"))
+         throw new MalformedTemplateException("Argument missing in #{a}");
+      sb.append("<a href=\"").append(tagArgs.get("_arg")).append("\">");
+      tagArgs = new HashMap<String, Object>();
+   }
+
+   private void stylesheet() throws MalformedTemplateException {
+      String src;
+      if (!tagArgs.containsKey("_src")) {
+         Object tmp = tagArgs.get("_arg");
+         if (tmp == null)
+            throw new MalformedTemplateException("No src given in form stylesheet");
+         src = tmp.toString();
+      } else
+         src = tagArgs.get("_src").toString();
+      sb.append("<link rel=\"stylesheet\" type=\"text/css\" href=\"").append(src).append("\"");
+      if (tagArgs.containsKey("_id"))
+         sb.append(" id=\"").append(tagArgs.get("_id")).append("\"");
+      if (tagArgs.containsKey("_media"))
+         sb.append(" media=\"").append(tagArgs.get("_media")).append("\"");
+      if (tagArgs.containsKey("_title"))
+         sb.append(" title=\"").append(tagArgs.get("_title")).append("\"");
+      sb.append(" />");
+      tagArgs = new HashMap<String, Object>();
+   }
+
+   private void EXTENDS() throws MalformedTemplateException {
+      Object tmp = tagArgs.get("_arg");
+      if (tmp == null)
+         throw new MalformedTemplateException("No parent given to #{extends/}");
+      if (hasParent())
+         throw new MalformedTemplateException("Only one #{extends/} allowed per template");
+      parent = tmp.toString();
+      tagArgs = new HashMap<String, Object>();
+   }
+
+   private void get() throws MalformedTemplateException {
+      Object tmp2 = tagArgs.get("_arg");
+      if (tmp2 == null)
+         throw new MalformedTemplateException("You didn't specify a name in #{get /}");
+      String key = tmp2.toString();
+      if (!extraArgs.containsKey(key))
+         throw new MalformedTemplateException("Could not found " + key + " for #{get /}. Did you forget to #{set} it ?");
+      sb.append(extraArgs.get(key));
+      tagArgs = new HashMap<String, Object>();
+   }
+
+   private void handleBuiltinTag(Tags tv, Map<String, Object> args, String ts) throws MalformedTemplateException {
+      switch (tv) {
+         case LIST:
+            list();
+            break;
+         case FIELD:
+            FIELD(args);
+            break;
+         case SET:
+            set();
+            break;
+         case FORM:
+            form();
+            break;
+         case SCRIPT:
+            script();
+            break;
+         case A:
+            a();
+            break;
+         case STYLESHEET:
+            stylesheet();
+            break;
+         case EXTENDS:
+            EXTENDS();
+            break;
+         case GET:
+            get();
+            break;
+      }
+      if (c == '/') {
+         switch (tv) {
+            case SCRIPT:
+               sb.append("</").append(ts).append(">");
+            case STYLESHEET:
+            case EXTENDS:
+            case SET:
+            case GET:
+               popTag(ts);
+               if (Tags.SET.equals(tv))
+                  body = null;
+               break;
+            default:
+               throw new MalformedTemplateException("#{" + ts + " /} is not allowed");
+         }
+      } else {
+         switch (tv) {
+            case STYLESHEET:
+            case EXTENDS:
+            case GET:
+               throw new MalformedTemplateException("Missing / in " + ts + " tag");
+         }
+      }
+   }
+
    private void handleTag(Map<String, Object> args) throws MalformedTemplateException {
       StringBuilder tag = new StringBuilder();
       for (++i; i < template.length() && (c = template.charAt(i)) != ' ' && c != '}'; ++i)
@@ -448,145 +621,12 @@ public class Template {
          return;
       }
       Tags tv = Tags.fromString(ts);
-      beginHandleTag(tv, args, ts);
+      handleSpecialTag(tv, args, ts);
       boolean simpleTag = false;
       if (!special) {
-         if (builtin) {
-            switch (tv) {
-               case LIST:
-                  if (!tagArgs.containsKey("_as"))
-                     tagArgs.put("_as", "_");
-                  if (!tagArgs.containsKey("_items")) {
-                     Object items = tagArgs.get("_arg");
-                     if (items == null)
-                        throw new MalformedTemplateException("You forgot the \"items\" argument in a #{list} tag");
-                     tagArgs.put("_items", items);
-                  }
-                  listTag = new ListTag(tagArgs);
-                  body = new StringBuilder();
-                  break;
-               case FIELD:
-                  Object fieldName = tagArgs.get("_arg");
-                  if (fieldName == null)
-                     throw new MalformedTemplateException("You forgot the argument of #{field} tag");
-                  field = new Field();
-                  field.name = fieldName.toString();
-                  field.id = field.name.replace(".", "_");
-                  String obj = field.name.split("\\?")[0].split("\\.")[0];
-                  //TODO: field.error stuff
-                  if (field.name.equals(obj))
-                     field.value = args.get(obj).toString();
-                  else {
-                     try {
-                        field.value = new SimpleTemplateEngine().createTemplate("${" + field.name + "}").make(args).toString();
-                     } catch (Exception ex) {
-                        Logger.getLogger(Template.class.getName()).log(Level.SEVERE, null, ex);
-                     }
-                  }
-                  body = new StringBuilder();
-                  break;
-               case SET:
-                  body = new StringBuilder();
-                  for (String key : tagArgs.keySet()) {
-                     if (!"_arg".equals(key))
-                        extraArgs.put(key.substring(1), tagArgs.get(key));
-                  }
-                  break;
-               case FORM:
-                  String action;
-                  if (!tagArgs.containsKey("_action")) {
-                     Object tmp = tagArgs.get("_arg");
-                     if (tmp == null)
-                        throw new MalformedTemplateException("No action given in form tag");
-                     action = tmp.toString();
-                  } else
-                     action = tagArgs.get("_action").toString();
-                  sb.append("<form action=\"").append(action).append("\" accept-charset=\"utf-8\" enctype=\"").append(tagArgs.containsKey("_enctype") ? tagArgs.get("_enctype") : "application/x-www-form-urlencoded").append("\"");
-                  if (tagArgs.containsKey("_id"))
-                     sb.append(" id=\"").append(tagArgs.get("_id")).append("\"");
-                  if (tagArgs.containsKey("_method"))
-                     sb.append(" method=\"").append(tagArgs.get("_method")).append("\"");
-                  sb.append(">");
-                  tagArgs = new HashMap<String, Object>();
-                  break;
-               case SCRIPT:
-                  if (!tagArgs.containsKey("_src"))
-                     throw new MalformedTemplateException("Missing src in #{script}");
-                  sb.append("<script type=\"text/javascript\" src=\"").append(tagArgs.get("_src")).append("\" charset=\"").append(tagArgs.containsKey("_charset") ? tagArgs.get("_charset") : "utf-8").append("\"");
-                  if (tagArgs.containsKey("_id"))
-                     sb.append(" id=\"").append(tagArgs.get("_id")).append("\"");
-                  sb.append(">");
-                  tagArgs = new HashMap<String, Object>();
-                  break;
-               case A:
-                  if (!tagArgs.containsKey("_arg"))
-                     throw new MalformedTemplateException("Argument missing in #{a}");
-                  sb.append("<a href=\"").append(tagArgs.get("_arg")).append("\">");
-                  tagArgs = new HashMap<String, Object>();
-                  break;
-               case STYLESHEET:
-                  String src;
-                  if (!tagArgs.containsKey("_src")) {
-                     Object tmp = tagArgs.get("_arg");
-                     if (tmp == null)
-                        throw new MalformedTemplateException("No src given in form stylesheet");
-                     src = tmp.toString();
-                  } else
-                     src = tagArgs.get("_src").toString();
-                  sb.append("<link rel=\"stylesheet\" type=\"text/css\" href=\"").append(src).append("\"");
-                  if (tagArgs.containsKey("_id"))
-                     sb.append(" id=\"").append(tagArgs.get("_id")).append("\"");
-                  if (tagArgs.containsKey("_media"))
-                     sb.append(" media=\"").append(tagArgs.get("_media")).append("\"");
-                  if (tagArgs.containsKey("_title"))
-                     sb.append(" title=\"").append(tagArgs.get("_title")).append("\"");
-                  sb.append(" />");
-                  tagArgs = new HashMap<String, Object>();
-                  break;
-               case EXTENDS:
-                  Object tmp = tagArgs.get("_arg");
-                  if (tmp == null)
-                     throw new MalformedTemplateException("No parent given to #{extends/}");
-                  if (hasParent())
-                     throw new MalformedTemplateException("Only one #{extends/} allowed per template");
-                  parent = tmp.toString();
-                  tagArgs = new HashMap<String, Object>();
-                  break;
-               case GET:
-                  Object tmp2 = tagArgs.get("_arg");
-                  if (tmp2 == null)
-                     throw new MalformedTemplateException("You didn't specify a name in #{get /}");
-                  String key = tmp2.toString();
-                  if (!extraArgs.containsKey(key))
-                     throw new MalformedTemplateException("Could not found " + key + " for #{get /}. Did you forget to #{set} it ?");
-                  sb.append(extraArgs.get(key));
-                  tagArgs = new HashMap<String, Object>();
-                  break;
-            }
-            if (c == '/') {
-               switch (tv) {
-                  case SCRIPT:
-                     sb.append("</").append(ts).append(">");
-                  case STYLESHEET:
-                  case EXTENDS:
-                  case SET:
-                  case GET:
-                     popTag(ts);
-                     if (Tags.SET.equals(tv))
-                        body = null;
-                     break;
-                  default:
-                     throw new MalformedTemplateException("#{" + ts + " /} is not allowed");
-               }
-            } else {
-               switch (tv) {
-                  case STYLESHEET:
-                  case EXTENDS:
-                  case GET:
-                     throw new MalformedTemplateException("Missing / in " + ts + " tag");
-               }
-            }
-         } else {
+         if (builtin)
+            handleBuiltinTag(tv, args, ts);
+         else {
             if (c != '/') {
                for (; i < template.length() && (c = template.charAt(i)) != '}' && c != '/'; ++i) ;
                if (c != '/') {
