@@ -196,85 +196,121 @@ public class Template {
       sb.append(" %>");
    }
 
+   private void slashIf() throws MalformedTemplateException {
+      popTag("if");
+      sb.append("<% } %>");
+   }
+
+   private void slashList() throws MalformedTemplateException {
+      popTag("list");
+      listTag.compute(body.toString(), extraArgs);
+      sb.append(listTag.toString());
+      body = null;
+      listTag = null;
+      tagArgs = new HashMap<String, Object>();
+   }
+
+   private void slashField() throws MalformedTemplateException {
+      popTag("field");
+      tagArgs = new HashMap<String, Object>();
+      tagArgs.put("field", field);
+      try {
+         Template f = new Template(body.toString(), extraArgs);
+         sb.append(f.compile(tagArgs));
+      } catch (Exception ex) {
+         Logger.getLogger(Template.class.getName()).log(Level.SEVERE, null, ex);
+         throw new MalformedTemplateException("Failed to execute #{field} -> \n" + body.toString() + " -> \n" + ex.getMessage());
+      }
+      body = null;
+      field = null;
+      tagArgs = new HashMap<String, Object>();
+   }
+
+   private void slashSet(Map<String, Object> args) throws MalformedTemplateException {
+      popTag("set");
+      Object tmp = tagArgs.get("_arg");
+      if (tmp == null)
+         throw new MalformedTemplateException("No name given for #{set}#{/set} value.");
+      try {
+         Template value = new Template(body.toString(), extraArgs);
+         extraArgs.put(tmp.toString(), value.compile(args));
+      } catch (Exception ex) {
+         Logger.getLogger(Template.class.getName()).log(Level.SEVERE, null, ex);
+         throw new MalformedTemplateException("Failed to evaluate #{set} " + tmp + " value");
+      }
+      body = null;
+   }
+
+   private void slashHtmlTag(String tag) throws MalformedTemplateException {
+      popTag(tag);
+      sb.append("</" + tag + ">");
+   }
+
+   private void IF() throws MalformedTemplateException {
+      pushTag("if");
+      sb.append("<% if (");
+      for (++i; i < template.length() && (c = template.charAt(i)) != '}'; ++i)
+         sb.append(c);
+      if (template.charAt(i - 1) == '/')
+         throw new MalformedTemplateException("#{if /} is not allowed");
+      sb.append(") { %>");
+   }
+
+   private void ifNot() throws MalformedTemplateException {
+      pushTag("if");
+      sb.append("<% } if (!(");
+      for (++i; i < template.length() && (c = template.charAt(i)) != '}'; ++i)
+         sb.append(c);
+      if (template.charAt(i - 1) == '/')
+         throw new MalformedTemplateException("#{ifnot /} is not allowed");
+      sb.append(")) { %>");
+   }
+
+   private void elseIf() throws MalformedTemplateException {
+      if (!lastTag.equals("if"))
+         throw new MalformedTemplateException("Unexpected elseif, did you forgot #{/" + lastTag + "}");
+      sb.append("<% } else if (");
+      for (++i; i < template.length() && (c = template.charAt(i)) != '}'; ++i)
+         sb.append(c);
+      sb.append(") { %>");
+   }
+
+   private void ELSE() throws MalformedTemplateException {
+      if (!lastTag.equals("if"))
+         throw new MalformedTemplateException("Unexpected else, did you forgot #{/" + lastTag + "}");
+      sb.append("<% } else { %>");
+   }
+
    private void beginHandleTag(Tags tv, Map<String, Object> args, String ts) throws MalformedTemplateException {
       switch (tv) {
          case SLASHIF:
-            popTag("if");
-            sb.append("<% } %>");
+            slashIf();
             break;
          case SLASHLIST:
-            popTag("list");
-            listTag.compute(body.toString(), extraArgs);
-            sb.append(listTag.toString());
-            body = null;
-            listTag = null;
-            tagArgs = new HashMap<String, Object>();
+            slashList();
             break;
          case SLASHFIELD:
-            popTag("field");
-            tagArgs = new HashMap<String, Object>();
-            tagArgs.put("field", field);
-            try {
-               Template f = new Template(body.toString(), extraArgs);
-               sb.append(f.compile(tagArgs));
-            } catch (Exception ex) {
-               Logger.getLogger(Template.class.getName()).log(Level.SEVERE, null, ex);
-               throw new MalformedTemplateException("Failed to execute #{field} -> \n" + body.toString() + " -> \n" + ex.getMessage());
-            }
-            body = null;
-            field = null;
-            tagArgs = new HashMap<String, Object>();
+            slashField();
             break;
          case SLASHSET:
-            popTag("set");
-            Object tmp = tagArgs.get("_arg");
-            if (tmp == null)
-               throw new MalformedTemplateException("No name given for #{set}#{/set} value.");
-            try {
-               Template value = new Template(body.toString(), extraArgs);
-               extraArgs.put(tmp.toString(), value.compile(args));
-            } catch (Exception ex) {
-               Logger.getLogger(Template.class.getName()).log(Level.SEVERE, null, ex);
-               throw new MalformedTemplateException("Failed to evaluate #{set} " + tmp + " value");
-            }
-            body = null;
+            slashSet(args);
             break;
          case SLASHFORM:
          case SLASHSCRIPT:
          case SLASHA:
-            popTag(ts.substring(1));
-            sb.append("<" + ts + ">");
+            slashHtmlTag(ts.substring(1));
             break;
          case IF:
-            pushTag("if");
-            sb.append("<% if (");
-            for (++i; i < template.length() && (c = template.charAt(i)) != '}'; ++i)
-               sb.append(c);
-            if (template.charAt(i - 1) == '/')
-               throw new MalformedTemplateException("#{if /} is not allowed");
-            sb.append(") { %>");
+            IF();
             break;
          case IFNOT:
-            pushTag("if");
-            sb.append("<% } if (!(");
-            for (++i; i < template.length() && (c = template.charAt(i)) != '}'; ++i)
-               sb.append(c);
-            if (template.charAt(i - 1) == '/')
-               throw new MalformedTemplateException("#{ifnot /} is not allowed");
-            sb.append(")) { %>");
+            ifNot();
             break;
          case ELSEIF:
-            if (!lastTag.equals("if"))
-               throw new MalformedTemplateException("Unexpected elseif, did you forgot #{/" + lastTag + "}");
-            sb.append("<% } else if (");
-            for (++i; i < template.length() && (c = template.charAt(i)) != '}'; ++i)
-               sb.append(c);
-            sb.append(") { %>");
+            elseIf();
             break;
          case ELSE:
-            if (!lastTag.equals("if"))
-               throw new MalformedTemplateException("Unexpected else, did you forgot #{/" + lastTag + "}");
-            sb.append("<% } else { %>");
+            ELSE();
             break;
          default:
             if (ts.startsWith("/")) {
@@ -284,7 +320,6 @@ public class Template {
                tagArgs = new HashMap<String, Object>();
                body = null;
             } else {
-               // TODO: handle other play # tags
                builtin = builtinTags.contains(Tags.fromString(ts));
                special = false;
                if (builtin)
