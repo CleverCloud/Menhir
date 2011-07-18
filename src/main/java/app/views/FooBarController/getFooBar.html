@@ -1,0 +1,64 @@
+#{set title:'It works lol !'/}
+#{extends 'main.html'/}
+This is FooBar with foo ${foobar.foo} and bar ${foobar.bar}
+#{if foobar.foo.equals("Yay")}
+blabla
+#{stylesheet '/css/foobar.css',media:'screen' /}
+<br/>
+#{set 'Yay'}
+${foobar.foo} !
+#{/set}
+#{foozor foo:foobar, bar:'Baz'}
+foozorBody
+#{anonymous _foo.bar/}
+beginNested
+#{foozor}
+YAY I'M FUCKING NESTED MAN !
+#{/foozor}
+endNested
+${_bar}
+*{ Testing funny coomment
+#{/foozor}
+of closing tag }*
+#{/foozor}
+<br/>
+#{elseif false}
+kikoo
+#{else}
+zormao
+*{Yay comment}*
+#{/if}
+%{ if (true) { }%
+foooooooooo
+#{a '/foo/bar'}barrr#{/a}
+%{ } }%
+<br/>
+#{if null}
+woohoo
+#{else}
+yeepee ${graou} plouf
+#{/if}
+#{script src:'/script/lol.js'}
+var foo='bar';
+#{/script}
+#{script src:'/script/lol2.js'/}
+\#{escaped/}
+#{hello msg:'Hello', name:hwd/}
+#{anonymous 'Check'/}
+<br/>
+#{list items:list, as:'zor'}
+#{include 'FooBarController/fooList.html'/}
+#{/list}
+<br/>
+#{include 'FooBarController/fooInclude.html'/}
+<br/>
+#{form '/dest/url/',method:'POST', id:'creationForm',enctype:'multipart/form-data' }
+<input type="button" value="submit"/>
+#{/form}
+<br/>
+%{ String nl2brtest = "Testing\nnl2br\n\\o/"; }%
+${nl2brtest.nl2br()}
+<br/>
+#{field 'foobar.foo'}
+FIELD | name: ${field.name} | id: ${field.id} | value: ${field.value} | /FIELD
+#{/field}
