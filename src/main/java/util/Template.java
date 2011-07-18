@@ -17,7 +17,7 @@ import java.util.regex.Pattern;
  */
 public class Template {
 
-   //TODO: Test escaping in weird deep cases
+   //TODO: Test escaping in weird deep cases and play with isLastChild if needed
    private String template;
    private boolean computed;
    private boolean compiled;
@@ -102,10 +102,12 @@ public class Template {
       parent = null;
       this.isLastChild = isLastChild;
       this.extraArgs = extraArgs;
+      // Detect include tags
       Pattern p1 = Pattern.compile("(.*)#\\{include *'(.+)' */\\}(.*)");
       Pattern p2 = Pattern.compile("(.*)#\\{include *\"(.+)\" */\\}(.*)");
       Matcher m;
       List<String> included = new ArrayList<String>();
+      // Matcher doesn't like multiline
       template = tpl.replace("\n", "__MENHIR__INTERNAL__NEWLINE__");
       for (; ; ) {
          m = p1.matcher(template);
@@ -120,9 +122,16 @@ public class Template {
          template = m.group(1) + new FileToString().doJob(Config.PATH + include) + m.group(3);
          included.add(include);
       }
+      // Restore new lines and escaping for childrens
       template = template.replace("__MENHIR__INTERNAL__NEWLINE__", "\n").replace("__MENHIR__INTERNAL__ESCAPE__", "\\");
    }
 
+   /**
+    * Pop a tag from our stack
+    *
+    * @param tag    The tag to pop
+    * @throws MalformedTemplateException    If the top of the stack isn't what we expect
+    */
    private void popTag(String tag) throws MalformedTemplateException {
       if (!lastTag.equals(tag))
          throw new MalformedTemplateException("Unexpected #{/" + tag + "}, did you forget #{/" + lastTag + "}");
@@ -130,11 +139,21 @@ public class Template {
       lastTag = tags.isEmpty() ? "" : tags.get(lastTagIndex);
    }
 
+   /**
+    * Push a tag in our stack
+    *
+    * @param tag    The tag to push
+    */
    private void pushTag(String tag) {
       tags.add(tag);
       lastTag = tags.get(++lastTagIndex);
    }
 
+   /**
+    * Grab the body of a "complex" tag (e.g. #{foo}body#{/foo}
+    *
+    * @throws MalformedTemplateException    if unexpected OEF
+    */
    private void handleBody() throws MalformedTemplateException {
       for (; i < template.length(); ++i) {
          c = template.charAt(i);
@@ -152,6 +171,11 @@ public class Template {
       }
    }
 
+   /**
+    * Grab a comment to ignore it
+    *
+    * @throws MalformedTemplateException    if unexpected EOF
+    */
    private void handleComment() throws MalformedTemplateException {
       do {
          for (; i < template.length() && template.charAt(i) != '}'; ++i) ;
@@ -162,9 +186,15 @@ public class Template {
          throw new MalformedTemplateException("Unexpected EOF in comment (missing * ?)");
    }
 
-   private void handleVar(Map<String, Object> args) {
+   /**
+    * Grab a var and handle it, initialize to null if needed
+    *
+    * @throws MalformedTemplateException    if unexpected EOF
+    */
+   private void handleVar(Map<String, Object> args) throws MalformedTemplateException {
       StringBuilder varName = new StringBuilder();
       char delimit;
+      // Support ${bar} and $bar
       if ((c = template.charAt(i)) == '{')
          delimit = '}';
       else {
@@ -173,12 +203,19 @@ public class Template {
       }
       for (++i; i < template.length() && ((c = template.charAt(i)) != delimit); ++i)
          varName.append(c);
+      if (delimit == '}' && c != delimit)
+         throw new MalformedTemplateException("Unexpected EOF in variable name (missing } ?)");
       String objName = varName.toString().split("\\?")[0].split("\\.")[0];
       if (!args.containsKey(objName))
          args.put(objName, null);
       sb.append("${").append(varName.toString()).append('}');
    }
 
+   /**
+    * Handle a Java/Groovy code section
+    *
+    * @throws MalformedTemplateException    if unexpected EOF
+    */
    private void handleJavaCode() throws MalformedTemplateException {
       sb.append("<% ");
       Character toAppend = null;
@@ -196,11 +233,21 @@ public class Template {
       sb.append(" %>");
    }
 
+   /**
+    * Handle builtin #{/if}
+    *
+    * @throws MalformedTemplateException    see popTag()
+    */
    private void slashIf() throws MalformedTemplateException {
       popTag("if");
       sb.append("<% } %>");
    }
 
+   /**
+    * Handle builtin #{/list}
+    *
+    * @throws MalformedTemplateException    see popTag()
+    */
    private void slashList() throws MalformedTemplateException {
       popTag("list");
       listTag.compute(body.toString(), extraArgs);
@@ -210,6 +257,11 @@ public class Template {
       tagArgs = new HashMap<String, Object>();
    }
 
+   /**
+    * Handle builtin #{/field}
+    *
+    * @throws MalformedTemplateException    execution failure or see popTag()
+    */
    private void slashField() throws MalformedTemplateException {
       popTag("field");
       tagArgs = new HashMap<String, Object>();
@@ -219,33 +271,50 @@ public class Template {
          sb.append(f.compile(tagArgs));
       } catch (Exception ex) {
          Logger.getLogger(Template.class.getName()).log(Level.SEVERE, null, ex);
-         throw new MalformedTemplateException("Failed to execute #{field} -> \n" + body.toString() + " -> \n" + ex.getMessage());
+         throw new MalformedTemplateException("Failed to execute #{field} named " + field.name);
       }
       body = null;
       field = null;
       tagArgs = new HashMap<String, Object>();
    }
 
+   /**
+    * Handle builtin #{/set}
+    *
+    * @param args   The args we're given from controller
+    * @throws MalformedTemplateException    execution failure or see popTag()
+    */
    private void slashSet(Map<String, Object> args) throws MalformedTemplateException {
       popTag("set");
-      Object tmp = tagArgs.get("_arg");
-      if (tmp == null)
+      Object name = tagArgs.get("_arg");
+      if (name == null)
          throw new MalformedTemplateException("No name given for #{set}#{/set} value.");
       try {
          Template value = new Template(body.toString(), extraArgs);
-         extraArgs.put(tmp.toString(), value.compile(args));
+         extraArgs.put(name.toString(), value.compile(args));
       } catch (Exception ex) {
          Logger.getLogger(Template.class.getName()).log(Level.SEVERE, null, ex);
-         throw new MalformedTemplateException("Failed to evaluate #{set} " + tmp + " value");
+         throw new MalformedTemplateException("Failed to evaluate #{set} " + name + " value");
       }
       body = null;
    }
 
+   /**
+    * Handle builtin #{/a}, #{/form}, etc (html tags)
+    *
+    * @param tag    The html tag name
+    * @throws MalformedTemplateException    see popTag()
+    */
    private void slashHtmlTag(String tag) throws MalformedTemplateException {
       popTag(tag);
       sb.append("</" + tag + ">");
    }
 
+   /**
+    * Handle builtin #{if}
+    *
+    * @throws MalformedTemplateException    if malformed if
+    */
    private void IF() throws MalformedTemplateException {
       pushTag("if");
       sb.append("<% if (");
@@ -256,6 +325,11 @@ public class Template {
       sb.append(") { %>");
    }
 
+   /**
+    * Handle builtin #{ifNot}
+    *
+    * @throws MalformedTemplateException    if malformed if
+    */
    private void ifNot() throws MalformedTemplateException {
       pushTag("if");
       sb.append("<% } if (!(");
@@ -266,7 +340,13 @@ public class Template {
       sb.append(")) { %>");
    }
 
+   /**
+    * Handle builtin #{elseif}
+    *
+    * @throws MalformedTemplateException    if malformed if
+    */
    private void elseIf() throws MalformedTemplateException {
+      // Don't pop & push if
       if (!lastTag.equals("if"))
          throw new MalformedTemplateException("Unexpected elseif, did you forgot #{/" + lastTag + "}");
       sb.append("<% } else if (");
@@ -275,12 +355,19 @@ public class Template {
       sb.append(") { %>");
    }
 
+   /**
+    * Handle builtin #{else}
+    *
+    * @throws MalformedTemplateException    if malformed if
+    */
    private void ELSE() throws MalformedTemplateException {
+      // Don't pop & push if
       if (!lastTag.equals("if"))
          throw new MalformedTemplateException("Unexpected else, did you forgot #{/" + lastTag + "}");
       sb.append("<% } else { %>");
    }
 
+   // TODO: split this up
    private void handleNonSpecialTag(Map<String, Object> args, String ts) throws MalformedTemplateException {
       builtin = builtinTags.contains(Tags.fromString(ts));
       special = false;
@@ -425,7 +512,9 @@ public class Template {
             if (ts.startsWith("/")) {
                ts = ts.substring(1);
                popTag(ts);
-               sb.append(runTemplate(Config.PATH + "tags/" + ts + ".tag", body.toString(), "doBody", tagArgs, extraArgs));
+               sb.append(
+                  runTemplate(Config.PATH + "tags/" + ts + ".tag", body.toString(), "doBody", tagArgs, extraArgs)
+               );
                tagArgs = new HashMap<String, Object>();
                body = null;
             } else {
@@ -434,6 +523,11 @@ public class Template {
       }
    }
 
+   /**
+    * Handle builtin #{list}
+    *
+    * @throws MalformedTemplateException    if malformed list
+    */
    private void list() throws MalformedTemplateException {
       if (!tagArgs.containsKey("_as"))
          tagArgs.put("_as", "_");
@@ -447,6 +541,12 @@ public class Template {
       body = new StringBuilder();
    }
 
+   /**
+    * Handle builtin #{field}
+    *
+    * @param args   The args we're given from controller
+    * @throws MalformedTemplateException    if malformed field
+    */
    private void FIELD(Map<String, Object> args) throws MalformedTemplateException {
       Object fieldName = tagArgs.get("_arg");
       if (fieldName == null)
@@ -456,9 +556,10 @@ public class Template {
       field.id = field.name.replace(".", "_");
       String obj = field.name.split("\\?")[0].split("\\.")[0];
       //TODO: field.error stuff
-      if (field.name.equals(obj))
-         field.value = args.get(obj).toString();
-      else {
+      if (field.name.equals(obj)) {
+         Object tmp = args.get(obj);
+         field.value = (tmp == null) ? "" : tmp.toString();
+      } else {
          try {
             field.value = new SimpleTemplateEngine().createTemplate("${" + field.name + "}").make(args).toString();
          } catch (Exception ex) {
@@ -468,7 +569,10 @@ public class Template {
       body = new StringBuilder();
    }
 
-   private void set() throws MalformedTemplateException {
+   /**
+    * Handle builtin #{set}
+    */
+   private void set() {
       body = new StringBuilder();
       for (String key : tagArgs.keySet()) {
          if (!"_arg".equals(key))
@@ -476,6 +580,11 @@ public class Template {
       }
    }
 
+   /**
+    * Handle builtin #{form}
+    *
+    * @throws MalformedTemplateException    if malformed form
+    */
    private void form() throws MalformedTemplateException {
       String action;
       if (!tagArgs.containsKey("_action")) {
@@ -494,6 +603,11 @@ public class Template {
       tagArgs = new HashMap<String, Object>();
    }
 
+   /**
+    * Handle builtin #{script}
+    *
+    * @throws MalformedTemplateException    if malformed script
+    */
    private void script() throws MalformedTemplateException {
       if (!tagArgs.containsKey("_src"))
          throw new MalformedTemplateException("Missing src in #{script}");
@@ -504,6 +618,11 @@ public class Template {
       tagArgs = new HashMap<String, Object>();
    }
 
+   /**
+    * Handle builtin #{a}
+    *
+    * @throws MalformedTemplateException    if malformed a
+    */
    private void a() throws MalformedTemplateException {
       if (!tagArgs.containsKey("_arg"))
          throw new MalformedTemplateException("Argument missing in #{a}");
@@ -511,6 +630,11 @@ public class Template {
       tagArgs = new HashMap<String, Object>();
    }
 
+   /**
+    * Handle builtin #{stylesheet}
+    *
+    * @throws MalformedTemplateException    if malformed stylesheet
+    */
    private void stylesheet() throws MalformedTemplateException {
       String src;
       if (!tagArgs.containsKey("_src")) {
@@ -531,6 +655,11 @@ public class Template {
       tagArgs = new HashMap<String, Object>();
    }
 
+   /**
+    * Handle builtin #{extends}
+    *
+    * @throws MalformedTemplateException    if malformed extends
+    */
    private void EXTENDS() throws MalformedTemplateException {
       Object tmp = tagArgs.get("_arg");
       if (tmp == null)
@@ -541,6 +670,11 @@ public class Template {
       tagArgs = new HashMap<String, Object>();
    }
 
+   /**
+    * Handle builtin #{get}
+    *
+    * @throws MalformedTemplateException    if malformed get or variable unknown
+    */
    private void get() throws MalformedTemplateException {
       Object tmp2 = tagArgs.get("_arg");
       if (tmp2 == null)
