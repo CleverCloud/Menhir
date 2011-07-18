@@ -860,6 +860,7 @@ public class Template {
             case '\\':
                if (++i == template.length())
                   throw new MalformedTemplateException("Unexpected EOF escaping");
+               // Forward escaping to children
                sb.append("__MENHIR__INTERNAL__ESCAPE__").append(template.charAt(i));
                break;
             default:
