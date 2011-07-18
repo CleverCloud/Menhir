@@ -1,3 +1,0 @@
-startFoozor
-#{doBody/}
-slashFoozor
