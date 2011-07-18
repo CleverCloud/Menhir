@@ -19,7 +19,7 @@ import org.bson.types.ObjectId;
 public abstract class Model {
 
    private static String host = "localhost";
-   private static String db = "loose";
+   private static String db = "menhir";
 
    @Id
    private ObjectId id;

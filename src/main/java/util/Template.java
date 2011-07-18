@@ -106,7 +106,7 @@ public class Template {
       Pattern p2 = Pattern.compile("(.*)#\\{include *\"(.+)\" */\\}(.*)");
       Matcher m;
       List<String> included = new ArrayList<String>();
-      template = tpl.replace("\n", "__LOOSE__INTERNAL__NEWLINE__");
+      template = tpl.replace("\n", "__MENHIR__INTERNAL__NEWLINE__");
       for (; ; ) {
          m = p1.matcher(template);
          if (!m.matches()) {
@@ -120,7 +120,7 @@ public class Template {
          template = m.group(1) + new FileToString().doJob(Config.PATH + include) + m.group(3);
          included.add(include);
       }
-      template = template.replace("__LOOSE__INTERNAL__NEWLINE__", "\n").replace("__LOOSE__INTERNAL__ESCAPE__", "\\");
+      template = template.replace("__MENHIR__INTERNAL__NEWLINE__", "\n").replace("__MENHIR__INTERNAL__ESCAPE__", "\\");
    }
 
    private void popTag(String tag) throws MalformedTemplateException {
@@ -390,7 +390,7 @@ public class Template {
       }
    }
 
-   private void handleSpecialTag(Tags tv, Map<String, Object> args, String ts) throws MalformedTemplateException {
+   private void handleMaybeSpecialTag(Tags tv, Map<String, Object> args, String ts) throws MalformedTemplateException {
       switch (tv) {
          case SLASHIF:
             slashIf();
@@ -625,7 +625,7 @@ public class Template {
          return;
       }
       Tags tv = Tags.fromString(ts);
-      handleSpecialTag(tv, args, ts);
+      handleMaybeSpecialTag(tv, args, ts);
       boolean simpleTag = false;
       if (!special) {
          if (builtin)
@@ -726,7 +726,7 @@ public class Template {
             case '\\':
                if (++i == template.length())
                   throw new MalformedTemplateException("Unexpected EOF escaping");
-               sb.append("__LOOSE__INTERNAL__ESCAPE__").append(template.charAt(i));
+               sb.append("__MENHIR__INTERNAL__ESCAPE__").append(template.charAt(i));
                break;
             default:
                sb.append(c);
@@ -738,12 +738,12 @@ public class Template {
       sb.append("<% } %>");
       if (hasParent()) {
          Map<String, Object> parentArgs = new HashMap<String, Object>();
-         template = runTemplate(Config.PATH + parent, "__LOOSE__INTERNAL__DOLAYOUT__", "doLayout", parentArgs, extraArgs).replace("__LOOSE__INTERNAL__DOLAYOUT__", sb.toString());
+         template = runTemplate(Config.PATH + parent, "__MENHIR__INTERNAL__DOLAYOUT__", "doLayout", parentArgs, extraArgs).replace("__MENHIR__INTERNAL__DOLAYOUT__", sb.toString());
          args.putAll(parentArgs); // TODO: how do we handle conflict here ?
       } else
          template = sb.toString();
       if (isLastChild)
-         template = template.replace("__LOOSE__INTERNAL__ESCAPE__", "");
+         template = template.replace("__MENHIR__INTERNAL__ESCAPE__", "");
    }
 
    /**

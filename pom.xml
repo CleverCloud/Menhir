@@ -4,11 +4,11 @@
    <modelVersion>4.0.0</modelVersion>
 
    <groupId>com.clever-cloud</groupId>
-   <artifactId>Loose</artifactId>
+   <artifactId>Menhir</artifactId>
    <version>1.0-SNAPSHOT</version>
    <packaging>war</packaging>
 
-   <name>Loose Web App</name>
+   <name>Menhir Web App</name>
 
    <properties>
       <endorsed.dir>${project.build.directory}/endorsed</endorsed.dir>
@@ -138,7 +138,7 @@
             </executions>
          </plugin>
       </plugins>
-      <finalName>Loose</finalName>
+      <finalName>Menhir</finalName>
    </build>
 
 </project>
